@@ -368,8 +368,8 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use(express.static(join(__dirname, "dist")));
 
-// SPA fallback
-app.get("*", (req, res) => {
+// SPA fallback (Express 5 requires named wildcard)
+app.get("/*path", (req, res) => {
   res.sendFile(join(__dirname, "dist", "index.html"));
 });
 
