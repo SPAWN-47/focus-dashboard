@@ -1,0 +1,7 @@
+{
+  "admin": {
+    "name": "Administrador",
+    "password": "$2a$10$HASH_AQUI",
+    "role": "admin"
+  }
+}

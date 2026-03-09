@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: focus-dashboard
+    runtime: node
+    region: ohio           # us-east-1, próximo ao Brasil
+    plan: free             # upgrade para "starter" para mais RAM se precisar
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/clients
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /data
+      - key: JWT_SECRET
+        generateValue: true   # Render gera um valor aleatório seguro automaticamente
+    disk:
+      name: focus-data
+      mountPath: /data
+      sizeGB: 1

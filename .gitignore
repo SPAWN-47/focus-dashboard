@@ -1,0 +1,30 @@
+.vercel
+.env*.local
+.env
+
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Dados sensíveis — NUNCA commitar (senhas e tokens de API)
+config/users.json
+config/clients.json
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code
+.claude/
+
+# Relatórios exportados (dados de clientes)
+*.json
+!package.json
+!package-lock.json
+!config/*.example.json
+!render.yaml
+
+# Logs
+*.log
