@@ -24,7 +24,6 @@ config/clients.json
 !package.json
 !package-lock.json
 !config/*.example.json
-!render.yaml
 
 # Logs
 *.log
