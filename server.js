@@ -360,6 +360,10 @@ app.get("/api/trend", async (req, res) => {
   }
 });
 
+// ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
+
+app.get("/health", (req, res) => res.json({ ok: true }));
+
 // ─── SERVE REACT APP ──────────────────────────────────────────────────────────
 
 app.use(express.static(join(__dirname, "dist")));

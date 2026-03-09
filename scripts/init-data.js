@@ -3,21 +3,18 @@
  * Initializes persistent data directory on first deploy.
  * Run before starting the server: node scripts/init-data.js
  *
- * On Railway/Render: DATA_DIR=/data (persistent volume)
+ * On Railway: DATA_DIR=/data (persistent volume mounted at /data)
  * Locally: DATA_DIR is not set — skips entirely.
- *
- * Env vars used for first-time admin setup:
- *   ADMIN_USERNAME  (default: "admin")
- *   ADMIN_PASSWORD  (required — set in Railway Variables)
  */
 
 import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { randomBytes } from "crypto";
 import { resolve } from "path";
 import { createRequire } from "module";
 
 const DATA_DIR = process.env.DATA_DIR;
 
-// Only run when DATA_DIR is explicitly set (i.e., on production platform)
+// Only run when DATA_DIR is set (production platform)
 if (!DATA_DIR) {
   process.exit(0);
 }
@@ -29,7 +26,7 @@ mkdirSync(DATA_DIR, { recursive: true });
 const clientsDest = resolve(DATA_DIR, "clients.json");
 if (!existsSync(clientsDest)) {
   writeFileSync(clientsDest, "{}\n", "utf8");
-  console.log("✅  Criado: clients.json (vazio — adicione clientes pelo painel admin)");
+  console.log("✅  Criado: clients.json (vazio)");
 } else {
   console.log("ℹ️   clients.json já existe.");
 }
@@ -38,23 +35,15 @@ if (!existsSync(clientsDest)) {
 
 const usersDest = resolve(DATA_DIR, "users.json");
 if (!existsSync(usersDest)) {
-  const adminUsername = process.env.ADMIN_USERNAME || "admin";
-  const adminPassword = process.env.ADMIN_PASSWORD;
-
-  if (!adminPassword) {
-    console.error(
-      "\n❌  ERRO: users.json não encontrado e ADMIN_PASSWORD não definido!\n" +
-        "   Adicione a variável ADMIN_PASSWORD nas configurações do Railway.\n"
-    );
-    process.exit(1);
-  }
-
   const require = createRequire(import.meta.url);
   const bcrypt = require("bcryptjs");
-  const hash = await bcrypt.hash(adminPassword, 10);
+
+  const username = process.env.ADMIN_USERNAME || "admin";
+  const password = randomBytes(8).toString("hex"); // e.g. "a3f2c1d4e5b6a7f8"
+  const hash = await bcrypt.hash(password, 10);
 
   const users = {
-    [adminUsername]: {
+    [username]: {
       name: "Administrador",
       password: hash,
       role: "admin",
@@ -62,8 +51,14 @@ if (!existsSync(usersDest)) {
   };
 
   writeFileSync(usersDest, JSON.stringify(users, null, 2), "utf8");
-  console.log(`✅  Criado: users.json com usuário admin "${adminUsername}"`);
-  console.log("⚠️   Altere a senha pelo painel assim que possível.");
+
+  console.log("\n" + "=".repeat(50));
+  console.log("🔑  CREDENCIAIS INICIAIS DO ADMIN");
+  console.log("=".repeat(50));
+  console.log(`   Usuário: ${username}`);
+  console.log(`   Senha:   ${password}`);
+  console.log("=".repeat(50));
+  console.log("⚠️   Anote esta senha — ela não será exibida novamente.\n");
 } else {
   console.log("ℹ️   users.json já existe.");
 }
