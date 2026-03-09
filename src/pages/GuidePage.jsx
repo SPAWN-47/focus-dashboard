@@ -3,6 +3,7 @@ import { ArrowLeft, LogOut, BookOpen, Eye, MousePointer, MessageCircle,
   DollarSign, TrendingUp, Target, BarChart3, HelpCircle, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import PlatformNav from "../components/PlatformNav";
 
 const Logo = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -101,6 +102,11 @@ export default function GuidePage() {
               <BookOpen className="w-3.5 h-3.5" />
               Guia do Dashboard
             </span>
+          </div>
+
+          {/* Platform Tabs */}
+          <div className="ml-2">
+            <PlatformNav active="guide" />
           </div>
 
           <div className="ml-auto flex items-center gap-3">

@@ -6,6 +6,7 @@ import {
   CheckCircle2, XCircle, ExternalLink, ArrowLeft, LogOut, Settings,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import PlatformNav from "../components/PlatformNav";
 
 const PERIODS = [
   { id: "daily", label: "Diário", sub: "Ontem" },
@@ -506,26 +507,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Platform Tabs */}
-          <div className="flex items-center gap-1 ml-2 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200">
-              <span className="text-[10px]">📘</span>
-              <span className="hidden sm:block">Meta Ads</span>
-            </div>
-            <a
-              href="/dashboard/google"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <span className="text-[10px]">🔵</span>
-              <span className="hidden sm:block">Google Ads</span>
-            </a>
-            <a
-              href="/guide"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-              title="Guia do Dashboard"
-            >
-              <span className="text-[10px]">📖</span>
-              <span className="hidden sm:block">Guia</span>
-            </a>
+          <div className="ml-2">
+            <PlatformNav active="meta" />
           </div>
 
           <div className="ml-auto flex items-center gap-3">

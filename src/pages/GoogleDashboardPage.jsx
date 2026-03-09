@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, LogOut, Construction, Clock, Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import PlatformNav from "../components/PlatformNav";
 
 const Logo = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -44,18 +45,8 @@ export default function GoogleDashboardPage() {
           </div>
 
           {/* Platform Tabs */}
-          <div className="flex items-center gap-1 ml-4 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
-            <a
-              href="/dashboard"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <span className="text-[10px]">📘</span>
-              Meta Ads
-            </a>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 text-zinc-200">
-              <span className="text-[10px]">🔵</span>
-              Google Ads
-            </div>
+          <div className="ml-4">
+            <PlatformNav active="google" />
           </div>
 
           <div className="ml-auto flex items-center gap-3">
