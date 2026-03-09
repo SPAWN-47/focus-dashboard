@@ -246,6 +246,7 @@ export default function AdminPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [newClientResult, setNewClientResult] = useState(null);
+  const [anomalies, setAnomalies] = useState(null); // null = carregando
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -260,9 +261,21 @@ export default function AdminPage() {
     }
   }, [authFetch]);
 
+  const loadAnomalies = useCallback(async () => {
+    setAnomalies(null);
+    try {
+      const res = await authFetch("/api/anomalies");
+      const data = await res.json();
+      setAnomalies(Array.isArray(data) ? data : []);
+    } catch {
+      setAnomalies([]);
+    }
+  }, [authFetch]);
+
   useEffect(() => {
     loadClients();
-  }, [loadClients]);
+    loadAnomalies();
+  }, [loadClients, loadAnomalies]);
 
   async function handleDelete(clientId) {
     setDeleting(true);
@@ -301,6 +314,14 @@ export default function AdminPage() {
               <span className="ml-2 text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5">
                 Admin
               </span>
+            {anomalies !== null && anomalies.length > 0 && (
+              <span className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {anomalies.length}
+              </span>
+            )}
             </div>
           </div>
 
@@ -383,6 +404,64 @@ export default function AdminPage() {
                 Adicionar Cliente
               </button>
             </div>
+
+            {/* Painel de alertas */}
+            {anomalies === null ? (
+              <div className="mb-6 flex items-center gap-2 text-xs text-gray-500 bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-3">
+                <svg className="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Verificando alertas de campanhas...
+              </div>
+            ) : anomalies.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                    Alertas de campanha
+                    <span className="text-gray-600 font-normal">({anomalies.length})</span>
+                  </h3>
+                  <button
+                    onClick={loadAnomalies}
+                    className="text-xs text-gray-500 hover:text-gray-300 transition"
+                  >
+                    Atualizar
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {anomalies.map((a, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                        a.severity === "critical"
+                          ? "bg-red-500/5 border-red-500/20"
+                          : "bg-yellow-500/5 border-yellow-500/20"
+                      }`}
+                    >
+                      <span className="text-base shrink-0">{a.severity === "critical" ? "🔴" : "🟡"}</span>
+                      <span className="text-xl shrink-0">{a.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{a.name}</p>
+                        <p className={`text-xs mt-0.5 ${a.severity === "critical" ? "text-red-400" : "text-yellow-400"}`}>
+                          {a.message}
+                        </p>
+                      </div>
+                      <a
+                        href={`/dashboard?client=${a.clientId}`}
+                        className="text-xs text-gray-500 hover:text-violet-400 transition shrink-0"
+                      >
+                        Ver →
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
