@@ -39,5 +39,11 @@ export default function App() {
     return <DashboardPage />;
   }
 
-  return <HomePage />;
+  // Root path: redirect to dashboard (or login if not authenticated)
+  if (!user) {
+    window.location.href = "/login";
+    return null;
+  }
+  window.location.href = user.role === "admin" ? "/admin" : "/dashboard";
+  return null;
 }
