@@ -302,6 +302,60 @@ export function metaApiPlugin() {
             return json({ hasData: days.length > 0, days });
           }
 
+          // ─── ANOMALIES (admin only) ────────────────────────────
+          if (path === "/api/anomalies" && method === "GET") {
+            const user = getUser();
+            if (!user || user.role !== "admin") {
+              return json({ error: "Acesso negado" }, 403);
+            }
+            const clients = loadClients();
+            const entries = Object.entries(clients);
+            if (entries.length === 0) return json([]);
+
+            const results = await Promise.allSettled(
+              entries.map(async ([id, c]) => {
+                const base = { clientId: id, name: c.name, emoji: c.emoji, color: c.color };
+                try {
+                  const r = await axios.get(`${META_BASE}/${c.accountId}/insights`, {
+                    params: {
+                      fields: "spend,impressions,actions",
+                      date_preset: "yesterday",
+                      level: "account",
+                      access_token: c.token,
+                    },
+                    timeout: 10000,
+                  });
+                  const raw = r.data.data?.[0] || null;
+                  if (!raw) {
+                    return [{ ...base, type: "parada", severity: "critical", message: "Sem atividade registrada ontem" }];
+                  }
+                  const spend = parseFloat(raw.spend || 0);
+                  const impressions = parseInt(raw.impressions || 0);
+                  const { value: conversas } = extractConversions(raw.actions || []);
+                  const anomalies = [];
+                  if (spend === 0 && impressions === 0) {
+                    anomalies.push({ ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" });
+                  } else if (spend > 15 && conversas === 0) {
+                    anomalies.push({ ...base, type: "sem_conversas", severity: "warning",
+                      message: `R$ ${spend.toFixed(2)} investidos sem conversas` });
+                  }
+                  return anomalies;
+                } catch (err) {
+                  const code = err.response?.data?.error?.code;
+                  if (code === 190 || code === 100) {
+                    return [{ ...base, type: "token", severity: "critical", message: "Token expirado ou inválido" }];
+                  }
+                  return [{ ...base, type: "erro", severity: "warning", message: "Não foi possível buscar dados" }];
+                }
+              })
+            );
+
+            const flat = results
+              .filter((r) => r.status === "fulfilled")
+              .flatMap((r) => r.value);
+            return json(flat);
+          }
+
           next();
         } catch (err) {
           const metaError = err.response?.data?.error;
