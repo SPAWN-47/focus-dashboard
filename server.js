@@ -17,6 +17,7 @@ import rateLimit from "express-rate-limit";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import cron from "node-cron";
 
 import {
   checkRateLimit,
@@ -28,10 +29,22 @@ import {
   signToken,
   verifyToken,
   hashPassword,
+  initDb,
 } from "./lib/auth.js";
 
+import * as dbModule from "./lib/db.js";
+import {
+  migrateFromJson,
+  getCachedInsights,
+  setCachedInsights,
+  saveInsightHistory,
+  logAnomaly,
+  getAnomalyHistory,
+  getLastCollectionTime,
+} from "./lib/db.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const META_BASE = "https://graph.facebook.com/v19.0";
+const META_BASE = "https://graph.facebook.com/v21.0";
 
 const DATE_PRESETS = {
   daily: "yesterday",
@@ -272,6 +285,10 @@ app.get("/api/insights", async (req, res) => {
     return res.status(400).json({ error: "Invalid client or period" });
   }
 
+  // Serve from cache if available
+  const cached = getCachedInsights(clientId, period);
+  if (cached) return res.json({ ...cached, fromCache: true });
+
   try {
     const response = await axios.get(
       `${META_BASE}/${clientConfig.accountId}/insights`,
@@ -302,14 +319,16 @@ app.get("/api/insights", async (req, res) => {
     const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
     const cpc = cliques > 0 ? gasto / cliques : 0;
 
-    res.json({
+    const payload = {
       hasData: true,
       client: clientConfig.name,
       clientId,
       period,
       convType,
       metrics: { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc },
-    });
+    };
+    setCachedInsights(clientId, period, payload);
+    res.json(payload);
   } catch (err) {
     const metaErr = err.response?.data?.error;
     res.status(500).json({ error: metaErr?.message || err.message });
@@ -342,15 +361,19 @@ app.get("/api/trend", async (req, res) => {
     );
 
     const days = (response.data.data || []).map((d) => {
+      const gasto = parseFloat(d.spend || 0);
+      const impressoes = parseInt(d.impressions || 0);
+      const cliques = parseInt(d.clicks || 0);
+      const alcance = parseInt(d.reach || 0);
       const { value: conversas } = extractConversions(d.actions);
-      return {
-        date: d.date_start,
-        gasto: parseFloat(d.spend || 0),
-        impressoes: parseInt(d.impressions || 0),
-        cliques: parseInt(d.clicks || 0),
-        alcance: parseInt(d.reach || 0),
-        conversas,
-      };
+      const cpl = conversas > 0 ? gasto / conversas : 0;
+      const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
+      const cpc = cliques > 0 ? gasto / cliques : 0;
+
+      // Persist each day to history
+      saveInsightHistory(clientId, d.date_start, { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc });
+
+      return { date: d.date_start, gasto, impressoes, cliques, alcance, conversas };
     });
 
     res.json({ hasData: days.length > 0, days });
@@ -390,15 +413,20 @@ app.get("/api/anomalies", async (req, res) => {
         const { value: conversas } = extractConversions(raw.actions || []);
         const anomalies = [];
         if (spend === 0 && impressions === 0) {
-          anomalies.push({ ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" });
+          const a = { ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" };
+          anomalies.push(a);
+          logAnomaly(id, a.type, a.severity, a.message);
         } else if (spend > 15 && conversas === 0) {
-          anomalies.push({ ...base, type: "sem_conversas", severity: "warning",
-            message: `R$ ${spend.toFixed(2)} investidos sem conversas` });
+          const msg = `R$ ${spend.toFixed(2)} investidos sem conversas`;
+          const a = { ...base, type: "sem_conversas", severity: "warning", message: msg };
+          anomalies.push(a);
+          logAnomaly(id, a.type, a.severity, a.message);
         }
         return anomalies;
       } catch (err) {
         const code = err.response?.data?.error?.code;
         if (code === 190 || code === 100) {
+          logAnomaly(id, "token", "critical", "Token expirado ou inválido");
           return [{ ...base, type: "token", severity: "critical", message: "Token expirado ou inválido" }];
         }
         return [{ ...base, type: "erro", severity: "warning", message: "Não foi possível buscar dados" }];
@@ -412,9 +440,26 @@ app.get("/api/anomalies", async (req, res) => {
   res.json(flat);
 });
 
+// ─── ANOMALY HISTORY (admin only) ─────────────────────────────────────────────
+
+app.get("/api/anomalies/history", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  res.json(getAnomalyHistory(limit));
+});
+
 // ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 
-app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/health", (req, res) => {
+  const clients = loadClients();
+  const lastCollection = getLastCollectionTime();
+  res.json({
+    ok: true,
+    clients: Object.keys(clients).length,
+    lastCollection,
+    uptime: Math.floor(process.uptime()),
+  });
+});
 
 // ─── SERVE REACT APP ──────────────────────────────────────────────────────────
 
@@ -425,7 +470,64 @@ app.get("/*path", (req, res) => {
   res.sendFile(join(__dirname, "dist", "index.html"));
 });
 
+// ─── DAILY DATA COLLECTION (cron) ─────────────────────────────────────────────
+
+async function collectDailyData() {
+  const clients = loadClients();
+  const entries = Object.entries(clients);
+  if (entries.length === 0) return;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateStr = yesterday.toISOString().split("T")[0];
+
+  let success = 0, errors = 0;
+  for (const [clientId, c] of entries) {
+    try {
+      const r = await axios.get(`${META_BASE}/${c.accountId}/insights`, {
+        params: {
+          fields: "spend,impressions,clicks,reach,actions",
+          date_preset: "yesterday",
+          level: "account",
+          access_token: c.token,
+        },
+        timeout: 15000,
+      });
+      const raw = r.data.data?.[0] || null;
+      if (!raw) continue;
+
+      const gasto = parseFloat(raw.spend || 0);
+      const impressoes = parseInt(raw.impressions || 0);
+      const cliques = parseInt(raw.clicks || 0);
+      const alcance = parseInt(raw.reach || 0);
+      const { value: conversas } = extractConversions(raw.actions || []);
+      const cpl = conversas > 0 ? gasto / conversas : 0;
+      const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
+      const cpc = cliques > 0 ? gasto / cliques : 0;
+      const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc };
+
+      saveInsightHistory(clientId, dateStr, metrics);
+      setCachedInsights(clientId, "daily", { hasData: true, client: c.name, clientId, period: "daily", metrics });
+      success++;
+    } catch (err) {
+      console.error(`[cron] Error fetching ${clientId}:`, err.message);
+      errors++;
+    }
+  }
+  console.log(`[cron] Daily collection: ${success} ok, ${errors} errors`);
+}
+
+// Run daily at 06:00
+cron.schedule("0 6 * * *", () => {
+  console.log("[cron] Starting daily data collection...");
+  collectDailyData();
+});
+
 // ─── START ────────────────────────────────────────────────────────────────────
+
+// Initialize DB and migrate from JSON files if needed
+initDb(dbModule);
+migrateFromJson();
 
 app.listen(PORT, () => {
   console.log(`\n✅  Focus Dashboard rodando na porta ${PORT}`);
