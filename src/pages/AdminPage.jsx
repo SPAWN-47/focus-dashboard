@@ -348,16 +348,16 @@ function CreativeCard({ ad, rank }) {
         <div className="grid grid-cols-3 gap-2 mt-3">
           {[
             { label: "Gasto", value: `R$ ${(ad.gasto || 0).toFixed(0)}` },
-            { label: "Conv.", value: ad.conversas ?? 0 },
+            { label: "Conversas", value: ad.conversas ?? 0 },
             { label: "CPL", value: ad.conversas > 0 ? `R$ ${(ad.cpl || 0).toFixed(0)}` : "—" },
           ].map((m) => (
-            <div key={m.label} className="text-center bg-zinc-800 rounded-lg py-2">
-              <p className="text-sm font-bold text-white tabular-nums">{m.value}</p>
-              <p className="text-[10px] text-zinc-500">{m.label}</p>
+            <div key={m.label} className="text-center bg-zinc-800 rounded-xl py-3">
+              <p className="text-base font-bold text-white tabular-nums">{m.value}</p>
+              <p className="text-xs text-zinc-400 mt-1 font-medium">{m.label}</p>
             </div>
           ))}
         </div>
-        <div className="flex justify-between text-xs text-zinc-600 mt-3">
+        <div className="flex justify-between text-xs text-zinc-400 mt-3 font-medium">
           <span>CTR {(ad.ctr || 0).toFixed(1)}%</span>
           <span>CPM R$ {(ad.cpm || 0).toFixed(0)}</span>
           <span>{(ad.impressoes || 0).toLocaleString("pt-BR")} imp.</span>
@@ -425,49 +425,49 @@ function ClientPerfCard({ client, data, period, anomalies }) {
               {clientAnomalies[0].message}
             </div>
           )}
-          <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             {[
               {
-                label: "Gasto",
+                label: "Investimento",
                 value: `R$ ${(m.gasto || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`,
                 alert: t?.target_spend > 0 && m.gasto > t.target_spend,
               },
               {
-                label: "Conv.",
+                label: "Conversas",
                 value: m.conversas ?? 0,
                 alert: t?.target_conversas > 0 && m.conversas < t.target_conversas * 0.5,
               },
               {
                 label: "CPL",
-                value: m.cpl > 0 ? `R$ ${m.cpl.toFixed(0)}` : "—",
+                value: m.cpl > 0 ? `R$ ${m.cpl.toFixed(2)}` : "—",
                 alert: t?.target_cpl_max > 0 && m.cpl > t.target_cpl_max,
               },
               {
                 label: "CTR",
-                value: `${(m.ctr || 0).toFixed(1)}%`,
+                value: `${(m.ctr || 0).toFixed(2)}%`,
               },
             ].map((kpi) => (
-              <div key={kpi.label} className="text-center">
+              <div key={kpi.label} className="bg-zinc-800/70 rounded-xl px-3 py-3 text-center">
                 <p
-                  className={`text-sm font-bold tabular-nums ${
+                  className={`text-lg font-bold tabular-nums leading-tight ${
                     kpi.alert ? "text-red-400" : "text-white"
                   }`}
                 >
                   {kpi.value}
                 </p>
-                <p className="text-[10px] text-zinc-500 mt-0.5">{kpi.label}</p>
+                <p className="text-xs text-zinc-400 mt-1 font-medium">{kpi.label}</p>
               </div>
             ))}
           </div>
           {period === "monthly" && (t?.target_spend > 0 || t?.target_conversas > 0) && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {t?.target_spend > 0 && (
                 <div>
-                  <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                  <div className="flex justify-between text-xs text-zinc-400 mb-1.5 font-medium">
                     <span>Budget mensal</span>
                     <span>{Math.round((m.gasto / t.target_spend) * 100)}%</span>
                   </div>
-                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-violet-500 rounded-full transition-all"
                       style={{ width: `${Math.min(100, (m.gasto / t.target_spend) * 100)}%` }}
@@ -477,13 +477,13 @@ function ClientPerfCard({ client, data, period, anomalies }) {
               )}
               {t?.target_conversas > 0 && (
                 <div>
-                  <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                  <div className="flex justify-between text-xs text-zinc-400 mb-1.5 font-medium">
                     <span>Meta conversas</span>
                     <span>
                       {m.conversas} / {t.target_conversas}
                     </span>
                   </div>
-                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-emerald-500 rounded-full transition-all"
                       style={{ width: `${Math.min(100, (m.conversas / t.target_conversas) * 100)}%` }}
