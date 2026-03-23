@@ -444,6 +444,7 @@ export default function DashboardPage() {
   const [activePeriod, setActivePeriod] = useState("daily");
   const [data, setData] = useState(null);
   const [trendData, setTrendData] = useState(null);
+  const [campaignData, setCampaignData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trendLoading, setTrendLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -499,10 +500,21 @@ export default function DashboardPage() {
     }
   }, [activeClient]);
 
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      const res = await authFetch(`/api/campaigns?client=${activeClient}&period=${activePeriod}`);
+      const json = await res.json();
+      setCampaignData(res.ok ? json : null);
+    } catch {
+      setCampaignData(null);
+    }
+  }, [activeClient, activePeriod]);
+
   useEffect(() => {
     fetchInsights();
     fetchTrend();
-  }, [fetchInsights, fetchTrend]);
+    fetchCampaigns();
+  }, [fetchInsights, fetchTrend, fetchCampaigns]);
 
   const metrics = data?.metrics || null;
   const delta = data?.delta || null;
@@ -548,7 +560,7 @@ export default function DashboardPage() {
             )}
             <span className="text-xs text-zinc-500 hidden sm:block">{user.name}</span>
             <button
-              onClick={() => { fetchInsights(true); fetchTrend(); }}
+              onClick={() => { fetchInsights(true); fetchTrend(); fetchCampaigns(); }}
               disabled={refreshing}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-300 transition-colors disabled:opacity-50"
             >
@@ -978,6 +990,61 @@ export default function DashboardPage() {
                       <p className="text-[11px] text-zinc-600 ml-auto">
                         Últimos 21 dias · passe o mouse nos bars para detalhes
                       </p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* CAMPAIGN BREAKDOWN */}
+                {campaignData?.hasData && campaignData.campaigns.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.4 }}
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-zinc-100">Por Campanha</h2>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          {campaignData.campaigns.length} campanhas · {PERIODS.find((p) => p.id === activePeriod)?.sub}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-zinc-500 border-b border-zinc-800">
+                            <th className="text-left pb-2 font-medium pr-4">Campanha</th>
+                            <th className="text-right pb-2 font-medium px-3">Invest.</th>
+                            <th className="text-right pb-2 font-medium px-3">Impr.</th>
+                            <th className="text-right pb-2 font-medium px-3">Cliques</th>
+                            <th className="text-right pb-2 font-medium px-3">Conv.</th>
+                            <th className="text-right pb-2 font-medium pl-3">CPL</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {campaignData.campaigns.map((c, i) => (
+                            <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                              <td className="py-2.5 pr-4 text-zinc-300 font-medium max-w-[200px] truncate">{c.name}</td>
+                              <td className="py-2.5 px-3 text-right text-zinc-200 font-mono">R$ {fBRL(c.gasto)}</td>
+                              <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.impressoes)}</td>
+                              <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.cliques)}</td>
+                              <td className="py-2.5 px-3 text-right">
+                                <span className={`font-semibold ${c.conversas > 0 ? "text-emerald-400" : "text-zinc-600"}`}>
+                                  {fNum(c.conversas)}
+                                </span>
+                              </td>
+                              <td className="py-2.5 pl-3 text-right">
+                                {c.conversas > 0 ? (
+                                  <span className="text-zinc-200 font-mono">R$ {fBRL(c.cpl)}</span>
+                                ) : (
+                                  <span className="text-zinc-600">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </motion.div>
                 )}

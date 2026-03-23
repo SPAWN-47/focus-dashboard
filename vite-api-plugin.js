@@ -9,41 +9,20 @@ import {
   signToken,
   verifyToken,
   hashPassword,
+  initDb,
 } from "./lib/auth.js";
-
-const META_BASE = "https://graph.facebook.com/v19.0";
-
-const DATE_PRESETS = {
-  daily: "yesterday",
-  weekly: "last_week_mon_sun",
-  monthly: "last_month",
-};
-
-function extractConversions(actions = []) {
-  const types = [
-    "onsite_conversion.messaging_conversation_started_7d",
-    "onsite_conversion.messaging_first_reply",
-    "lead",
-    "contact",
-  ];
-  for (const tipo of types) {
-    const action = actions.find((a) => a.action_type === tipo);
-    if (action && parseInt(action.value) > 0) {
-      return { value: parseInt(action.value), type: tipo };
-    }
-  }
-  const total = actions.reduce((sum, a) => {
-    if (
-      a.action_type.includes("message") ||
-      a.action_type.includes("lead") ||
-      a.action_type.includes("contact")
-    ) {
-      return sum + parseInt(a.value || 0);
-    }
-    return sum;
-  }, 0);
-  return { value: total, type: total > 0 ? "aggregate" : null };
-}
+import * as dbModule from "./lib/db.js";
+import {
+  migrateFromJson,
+  getCachedInsights,
+  setCachedInsights,
+  saveInsightHistory,
+  getClient,
+  getPreviousPeriodMetrics,
+  logAnomaly,
+  getAnomalyHistory,
+} from "./lib/db.js";
+import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
@@ -61,6 +40,10 @@ function parseBody(req) {
 }
 
 export function metaApiPlugin() {
+  // Initialize db once when plugin is loaded
+  initDb(dbModule);
+  migrateFromJson();
+
   return {
     name: "meta-api",
     configureServer(server) {
@@ -84,8 +67,20 @@ export function metaApiPlugin() {
           res.end(JSON.stringify(data));
         };
 
-        // Get authenticated user from JWT
         const getUser = () => verifyToken(req.headers["authorization"]);
+
+        const requireAuth = () => {
+          const user = getUser();
+          if (!user) { json({ error: "Não autenticado" }, 401); return null; }
+          return user;
+        };
+
+        const requireAdmin = () => {
+          const user = getUser();
+          if (!user) { json({ error: "Não autenticado" }, 401); return null; }
+          if (user.role !== "admin") { json({ error: "Acesso negado" }, 403); return null; }
+          return user;
+        };
 
         try {
           // ─── AUTH ──────────────────────────────────────────────
@@ -129,10 +124,7 @@ export function metaApiPlugin() {
 
           // ─── CONFIG (admin only) ───────────────────────────────
           if (path.startsWith("/api/config/")) {
-            const user = getUser();
-            if (!user || user.role !== "admin") {
-              return json({ error: "Acesso negado" }, 403);
-            }
+            if (!requireAdmin()) return;
 
             if (path === "/api/config/clients" && method === "GET") {
               const clients = loadClients();
@@ -141,7 +133,10 @@ export function metaApiPlugin() {
 
             if (path === "/api/config/clients" && method === "POST") {
               const body = await parseBody(req);
-              const { id, name, emoji, color, token: apiToken, accountId } = body;
+              const {
+                id, name, emoji, color, token: apiToken, accountId,
+                ticket_medio, target_cpl_max, target_conversas, target_spend,
+              } = body;
               if (!id || !name || !apiToken || !accountId) {
                 return json({ error: "id, name, token e accountId são obrigatórios" }, 400);
               }
@@ -154,6 +149,10 @@ export function metaApiPlugin() {
                 color: color || "#6B7280",
                 token: apiToken,
                 accountId,
+                ticket_medio: parseFloat(ticket_medio) || 0,
+                target_cpl_max: parseFloat(target_cpl_max) || 0,
+                target_conversas: parseInt(target_conversas) || 0,
+                target_spend: parseFloat(target_spend) || 0,
               };
               saveClients(clients);
 
@@ -173,21 +172,21 @@ export function metaApiPlugin() {
               return json({ success: true, id, username, password: plainPassword });
             }
 
-            const putMatch = path.match(/^\/api\/config\/clients\/(.+)$/);
-            if (putMatch && method === "PUT") {
-              const clientId = putMatch[1];
+            const clientIdMatch = path.match(/^\/api\/config\/clients\/(.+)$/);
+            if (clientIdMatch && method === "PUT") {
+              const clientId = clientIdMatch[1];
               const body = await parseBody(req);
               const clients = loadClients();
               if (!clients[clientId]) return json({ error: "Cliente não encontrado" }, 404);
-              clients[clientId] = { ...clients[clientId], ...body };
-              delete clients[clientId].id;
+              const updated = { ...clients[clientId], ...body };
+              delete updated.id;
+              clients[clientId] = updated;
               saveClients(clients);
               return json({ success: true });
             }
 
-            const deleteMatch = path.match(/^\/api\/config\/clients\/(.+)$/);
-            if (deleteMatch && method === "DELETE") {
-              const clientId = deleteMatch[1];
+            if (clientIdMatch && method === "DELETE") {
+              const clientId = clientIdMatch[1];
               const clients = loadClients();
               if (!clients[clientId]) return json({ error: "Cliente não encontrado" }, 404);
               delete clients[clientId];
@@ -203,12 +202,7 @@ export function metaApiPlugin() {
               }
               try {
                 const r = await axios.get(`${META_BASE}/${accountId}/insights`, {
-                  params: {
-                    fields: "spend",
-                    date_preset: "yesterday",
-                    level: "account",
-                    access_token: apiToken,
-                  },
+                  params: { fields: "spend", date_preset: "yesterday", level: "account", access_token: apiToken },
                 });
                 return json({ success: true, data: r.data.data?.[0] || null });
               } catch (err) {
@@ -220,94 +214,141 @@ export function metaApiPlugin() {
 
           // ─── INSIGHTS ──────────────────────────────────────────
           if (path === "/api/insights" && method === "GET") {
+            const user = requireAuth();
+            if (!user) return;
+
             const clientId = url.searchParams.get("client");
             const period = url.searchParams.get("period");
+
+            if (user.role === "client" && user.clientId !== clientId) {
+              return json({ error: "Acesso negado" }, 403);
+            }
+
             const clients = loadClients();
             const clientConfig = clients[clientId];
             const datePreset = DATE_PRESETS[period];
 
-            if (!clientConfig || !datePreset) {
-              return json({ error: "Invalid client or period" }, 400);
-            }
+            if (!clientConfig || !datePreset) return json({ error: "Invalid client or period" }, 400);
 
-            const response = await axios.get(
-              `${META_BASE}/${clientConfig.accountId}/insights`,
-              {
-                params: {
-                  fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
-                  date_preset: datePreset,
-                  level: "account",
-                  access_token: clientConfig.token,
-                },
-              }
-            );
+            const cached = getCachedInsights(clientId, period);
+            if (cached) return json({ ...cached, fromCache: true });
+
+            const response = await axios.get(`${META_BASE}/${clientConfig.accountId}/insights`, {
+              params: {
+                fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
+                date_preset: datePreset,
+                level: "account",
+                access_token: clientConfig.token,
+              },
+            });
 
             const raw = response.data.data?.[0] || null;
-            if (!raw) {
-              return json({ hasData: false, client: clientConfig.name, period });
-            }
+            if (!raw) return json({ hasData: false, client: clientConfig.name, period });
 
-            const gasto = parseFloat(raw.spend || 0);
-            const impressoes = parseInt(raw.impressions || 0);
-            const cliques = parseInt(raw.clicks || 0);
-            const alcance = parseInt(raw.reach || 0);
-            const { value: conversas, type: convType } = extractConversions(raw.actions);
-            const cpl = conversas > 0 ? gasto / conversas : 0;
-            const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
-            const cpc = cliques > 0 ? gasto / cliques : 0;
+            const { gasto, impressoes, cliques, alcance, conversas, convType, cpl, ctr, cpc, cpm, frequencia } = computeMetrics(raw);
 
-            return json({
-              hasData: true,
-              client: clientConfig.name,
-              clientId,
-              period,
-              convType,
-              metrics: { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc },
-            });
+            const clientData = getClient(clientId);
+            const roas = clientData?.ticket_medio > 0 && conversas > 0 && gasto > 0
+              ? (conversas * clientData.ticket_medio) / gasto
+              : null;
+
+            const targets = {
+              ticket_medio: clientData?.ticket_medio || 0,
+              target_conversas: clientData?.target_conversas || 0,
+              target_cpl_max: clientData?.target_cpl_max || 0,
+              target_spend: clientData?.target_spend || 0,
+            };
+
+            const prev = getPreviousPeriodMetrics(clientId, period);
+            const delta = prev ? {
+              gasto: prev.gasto > 0 ? ((gasto - prev.gasto) / prev.gasto) * 100 : null,
+              impressoes: prev.impressoes > 0 ? ((impressoes - prev.impressoes) / prev.impressoes) * 100 : null,
+              cliques: prev.cliques > 0 ? ((cliques - prev.cliques) / prev.cliques) * 100 : null,
+              conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
+              cpl: prev.cpl > 0 ? ((cpl - prev.cpl) / prev.cpl) * 100 : null,
+              cpm: prev.cpm > 0 ? ((cpm - prev.cpm) / prev.cpm) * 100 : null,
+            } : null;
+
+            const payload = {
+              hasData: true, client: clientConfig.name, clientId, period, convType,
+              targets, delta,
+              metrics: { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc, cpm, frequencia, roas },
+            };
+            setCachedInsights(clientId, period, payload);
+            return json(payload);
           }
 
           // ─── TREND ─────────────────────────────────────────────
           if (path === "/api/trend" && method === "GET") {
+            const user = requireAuth();
+            if (!user) return;
+
             const clientId = url.searchParams.get("client");
+            if (user.role === "client" && user.clientId !== clientId) {
+              return json({ error: "Acesso negado" }, 403);
+            }
+
             const clients = loadClients();
             const clientConfig = clients[clientId];
-
             if (!clientConfig) return json({ error: "Invalid client" }, 400);
 
-            const response = await axios.get(
-              `${META_BASE}/${clientConfig.accountId}/insights`,
-              {
-                params: {
-                  fields: "spend,impressions,clicks,reach,actions",
-                  date_preset: "last_30d",
-                  level: "account",
-                  time_increment: 1,
-                  access_token: clientConfig.token,
-                },
-              }
-            );
+            const response = await axios.get(`${META_BASE}/${clientConfig.accountId}/insights`, {
+              params: {
+                fields: "spend,impressions,clicks,reach,actions",
+                date_preset: "last_30d",
+                level: "account",
+                time_increment: 1,
+                access_token: clientConfig.token,
+              },
+            });
 
             const days = (response.data.data || []).map((d) => {
-              const { value: conversas } = extractConversions(d.actions);
-              return {
-                date: d.date_start,
-                gasto: parseFloat(d.spend || 0),
-                impressoes: parseInt(d.impressions || 0),
-                cliques: parseInt(d.clicks || 0),
-                alcance: parseInt(d.reach || 0),
-                conversas,
-              };
+              const m = computeMetrics(d);
+              saveInsightHistory(clientId, d.date_start, m);
+              return { date: d.date_start, gasto: m.gasto, impressoes: m.impressoes, cliques: m.cliques, alcance: m.alcance, conversas: m.conversas };
             });
 
             return json({ hasData: days.length > 0, days });
           }
 
-          // ─── ANOMALIES (admin only) ────────────────────────────
-          if (path === "/api/anomalies" && method === "GET") {
-            const user = getUser();
-            if (!user || user.role !== "admin") {
+          // ─── CAMPAIGNS ────────────────────────────────────────
+          if (path === "/api/campaigns" && method === "GET") {
+            const user = requireAuth();
+            if (!user) return;
+
+            const clientId = url.searchParams.get("client");
+            const period = url.searchParams.get("period");
+            if (user.role === "client" && user.clientId !== clientId) {
               return json({ error: "Acesso negado" }, 403);
             }
+
+            const clients = loadClients();
+            const clientConfig = clients[clientId];
+            const datePreset = DATE_PRESETS[period] || "yesterday";
+            if (!clientConfig) return json({ error: "Invalid client" }, 400);
+
+            const response = await axios.get(`${META_BASE}/${clientConfig.accountId}/insights`, {
+              params: {
+                fields: "campaign_name,spend,impressions,clicks,reach,actions",
+                date_preset: datePreset,
+                level: "campaign",
+                access_token: clientConfig.token,
+              },
+              timeout: 15000,
+            });
+
+            const campaigns = (response.data.data || []).map((d) => {
+              const m = computeMetrics(d);
+              return { name: d.campaign_name || "—", gasto: m.gasto, impressoes: m.impressoes, cliques: m.cliques, conversas: m.conversas, cpl: m.cpl, ctr: m.ctr, cpm: m.cpm };
+            });
+            campaigns.sort((a, b) => b.gasto - a.gasto);
+            return json({ hasData: campaigns.length > 0, campaigns });
+          }
+
+          // ─── ANOMALIES (admin only) ────────────────────────────
+          if (path === "/api/anomalies" && method === "GET") {
+            if (!requireAdmin()) return;
+
             const clients = loadClients();
             const entries = Object.entries(clients);
             if (entries.length === 0) return json([]);
@@ -317,32 +358,39 @@ export function metaApiPlugin() {
                 const base = { clientId: id, name: c.name, emoji: c.emoji, color: c.color };
                 try {
                   const r = await axios.get(`${META_BASE}/${c.accountId}/insights`, {
-                    params: {
-                      fields: "spend,impressions,actions",
-                      date_preset: "yesterday",
-                      level: "account",
-                      access_token: c.token,
-                    },
+                    params: { fields: "spend,impressions,actions", date_preset: "yesterday", level: "account", access_token: c.token },
                     timeout: 10000,
                   });
                   const raw = r.data.data?.[0] || null;
-                  if (!raw) {
-                    return [{ ...base, type: "parada", severity: "critical", message: "Sem atividade registrada ontem" }];
-                  }
-                  const spend = parseFloat(raw.spend || 0);
-                  const impressions = parseInt(raw.impressions || 0);
-                  const { value: conversas } = extractConversions(raw.actions || []);
+                  if (!raw) return [{ ...base, type: "parada", severity: "critical", message: "Sem atividade registrada ontem" }];
+
+                  const { gasto: spend, impressoes: impressions, conversas } = computeMetrics(raw);
                   const anomalies = [];
+                  const spendThreshold = c.target_spend > 0 ? c.target_spend * 0.005 : 15;
+
                   if (spend === 0 && impressions === 0) {
-                    anomalies.push({ ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" });
-                  } else if (spend > 15 && conversas === 0) {
-                    anomalies.push({ ...base, type: "sem_conversas", severity: "warning",
-                      message: `R$ ${spend.toFixed(2)} investidos sem conversas` });
+                    const a = { ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" };
+                    anomalies.push(a); logAnomaly(id, a.type, a.severity, a.message);
+                  } else if (spend > spendThreshold && conversas === 0) {
+                    const msg = `R$ ${spend.toFixed(2)} investidos sem conversas`;
+                    const a = { ...base, type: "sem_conversas", severity: "warning", message: msg };
+                    anomalies.push(a); logAnomaly(id, a.type, a.severity, a.message);
                   }
+
+                  if (c.target_cpl_max > 0 && conversas > 0) {
+                    const cpl = spend / conversas;
+                    if (cpl > c.target_cpl_max) {
+                      const msg = `CPL R$ ${cpl.toFixed(2)} acima do target R$ ${c.target_cpl_max.toFixed(2)}`;
+                      anomalies.push({ ...base, type: "cpl_alto", severity: "warning", message: msg });
+                      logAnomaly(id, "cpl_alto", "warning", msg);
+                    }
+                  }
+
                   return anomalies;
                 } catch (err) {
                   const code = err.response?.data?.error?.code;
                   if (code === 190 || code === 100) {
+                    logAnomaly(id, "token", "critical", "Token expirado ou inválido");
                     return [{ ...base, type: "token", severity: "critical", message: "Token expirado ou inválido" }];
                   }
                   return [{ ...base, type: "erro", severity: "warning", message: "Não foi possível buscar dados" }];
@@ -350,22 +398,27 @@ export function metaApiPlugin() {
               })
             );
 
-            const flat = results
-              .filter((r) => r.status === "fulfilled")
-              .flatMap((r) => r.value);
-            return json(flat);
+            return json(results.filter((r) => r.status === "fulfilled").flatMap((r) => r.value));
+          }
+
+          // ─── ANOMALY HISTORY (admin only) ─────────────────────
+          if (path === "/api/anomalies/history" && method === "GET") {
+            if (!requireAdmin()) return;
+            const limit = Math.min(parseInt(url.searchParams.get("limit")) || 100, 500);
+            return json(getAnomalyHistory(limit));
+          }
+
+          // ─── HEALTH ────────────────────────────────────────────
+          if (path === "/health" && method === "GET") {
+            const clients = loadClients();
+            return json({ ok: true, clients: Object.keys(clients).length, env: "dev" });
           }
 
           next();
         } catch (err) {
           const metaError = err.response?.data?.error;
           res.statusCode = 500;
-          res.end(
-            JSON.stringify({
-              error: metaError?.message || err.message,
-              code: metaError?.code,
-            })
-          );
+          res.end(JSON.stringify({ error: metaError?.message || err.message, code: metaError?.code }));
         }
       });
     },

@@ -18,6 +18,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
 import cron from "node-cron";
+import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 
 import {
   checkRateLimit,
@@ -47,13 +48,6 @@ import {
 } from "./lib/db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const META_BASE = "https://graph.facebook.com/v21.0";
-
-const DATE_PRESETS = {
-  daily: "yesterday",
-  weekly: "last_week_mon_sun",
-  monthly: "last_month",
-};
 
 // ─── APP SETUP ───────────────────────────────────────────────────────────────
 
@@ -122,32 +116,6 @@ function requireAdmin(req, res) {
     return null;
   }
   return user;
-}
-
-function extractConversions(actions = []) {
-  const types = [
-    "onsite_conversion.messaging_conversation_started_7d",
-    "onsite_conversion.messaging_first_reply",
-    "lead",
-    "contact",
-  ];
-  for (const tipo of types) {
-    const action = actions.find((a) => a.action_type === tipo);
-    if (action && parseInt(action.value) > 0) {
-      return { value: parseInt(action.value), type: tipo };
-    }
-  }
-  const total = actions.reduce((sum, a) => {
-    if (
-      a.action_type.includes("message") ||
-      a.action_type.includes("lead") ||
-      a.action_type.includes("contact")
-    ) {
-      return sum + parseInt(a.value || 0);
-    }
-    return sum;
-  }, 0);
-  return { value: total, type: total > 0 ? "aggregate" : null };
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
@@ -346,18 +314,7 @@ app.get("/api/insights", async (req, res) => {
       return res.json({ hasData: false, client: clientConfig.name, period });
     }
 
-    const gasto = parseFloat(raw.spend || 0);
-    const impressoes = parseInt(raw.impressions || 0);
-    const cliques = parseInt(raw.clicks || 0);
-    const alcance = parseInt(raw.reach || 0);
-    const { value: conversas, type: convType } = extractConversions(
-      raw.actions
-    );
-    const cpl = conversas > 0 ? gasto / conversas : 0;
-    const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
-    const cpc = cliques > 0 ? gasto / cliques : 0;
-    const cpm = impressoes > 0 ? (gasto / impressoes) * 1000 : 0;
-    const frequencia = alcance > 0 ? impressoes / alcance : 0;
+    const { gasto, impressoes, cliques, alcance, conversas, convType, cpl, ctr, cpc, cpm, frequencia } = computeMetrics(raw);
 
     // ROAS requires ticket_medio configured on client
     const clientData = getClient(clientId);
@@ -439,19 +396,9 @@ app.get("/api/trend", async (req, res) => {
     );
 
     const days = (response.data.data || []).map((d) => {
-      const gasto = parseFloat(d.spend || 0);
-      const impressoes = parseInt(d.impressions || 0);
-      const cliques = parseInt(d.clicks || 0);
-      const alcance = parseInt(d.reach || 0);
-      const { value: conversas } = extractConversions(d.actions);
-      const cpl = conversas > 0 ? gasto / conversas : 0;
-      const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
-      const cpc = cliques > 0 ? gasto / cliques : 0;
-
-      // Persist each day to history
-      saveInsightHistory(clientId, d.date_start, { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc });
-
-      return { date: d.date_start, gasto, impressoes, cliques, alcance, conversas };
+      const m = computeMetrics(d);
+      saveInsightHistory(clientId, d.date_start, m);
+      return { date: d.date_start, gasto: m.gasto, impressoes: m.impressoes, cliques: m.cliques, alcance: m.alcance, conversas: m.conversas };
     });
 
     res.json({ hasData: days.length > 0, days });
@@ -544,6 +491,60 @@ app.get("/api/anomalies", async (req, res) => {
   res.json(flat);
 });
 
+// ─── CAMPAIGNS (per-campaign breakdown) ──────────────────────────────────────
+
+app.get("/api/campaigns", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const { client: clientId, period } = req.query;
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const datePreset = DATE_PRESETS[period] || "yesterday";
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  try {
+    const response = await axios.get(
+      `${META_BASE}/${clientConfig.accountId}/insights`,
+      {
+        params: {
+          fields: "campaign_name,spend,impressions,clicks,reach,actions",
+          date_preset: datePreset,
+          level: "campaign",
+          access_token: clientConfig.token,
+        },
+        timeout: 15000,
+      }
+    );
+
+    const campaigns = (response.data.data || []).map((d) => {
+      const m = computeMetrics(d);
+      return {
+        name: d.campaign_name || "—",
+        gasto: m.gasto,
+        impressoes: m.impressoes,
+        cliques: m.cliques,
+        conversas: m.conversas,
+        cpl: m.cpl,
+        ctr: m.ctr,
+        cpm: m.cpm,
+      };
+    });
+
+    // Sort by spend descending
+    campaigns.sort((a, b) => b.gasto - a.gasto);
+    res.json({ hasData: campaigns.length > 0, campaigns });
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(500).json({ error: metaErr?.message || err.message });
+  }
+});
+
 // ─── ANOMALY HISTORY (admin only) ─────────────────────────────────────────────
 
 app.get("/api/anomalies/history", (req, res) => {
@@ -600,18 +601,10 @@ async function collectDailyData() {
       const raw = r.data.data?.[0] || null;
       if (!raw) continue;
 
-      const gasto = parseFloat(raw.spend || 0);
-      const impressoes = parseInt(raw.impressions || 0);
-      const cliques = parseInt(raw.clicks || 0);
-      const alcance = parseInt(raw.reach || 0);
-      const { value: conversas } = extractConversions(raw.actions || []);
-      const cpl = conversas > 0 ? gasto / conversas : 0;
-      const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
-      const cpc = cliques > 0 ? gasto / cliques : 0;
-      const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc };
+      const metrics = computeMetrics(raw);
 
       saveInsightHistory(clientId, dateStr, metrics);
-      setCachedInsights(clientId, "daily", { hasData: true, client: c.name, clientId, period: "daily", metrics });
+      setCachedInsights(clientId, "daily", { hasData: true, client: c.name, clientId, period: "daily", metrics, targets: {}, delta: null });
       success++;
     } catch (err) {
       console.error(`[cron] Error fetching ${clientId}:`, err.message);
