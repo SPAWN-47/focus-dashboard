@@ -307,6 +307,198 @@ function ClientModal({ client, onClose, onSave }) {
   );
 }
 
+function CreativeCard({ ad, rank }) {
+  const medals = ["🥇", "🥈", "🥉"];
+  const medal = rank <= 3 ? medals[rank - 1] : null;
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition">
+      <div className="aspect-video bg-zinc-800 relative overflow-hidden">
+        {ad.thumbnail ? (
+          <img
+            src={ad.thumbnail}
+            alt={ad.name}
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-zinc-600">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+          </div>
+        )}
+        {medal && (
+          <div className="absolute top-2 left-2 text-xl leading-none drop-shadow">
+            {medal}
+          </div>
+        )}
+        {!medal && (
+          <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-zinc-700/80 flex items-center justify-center text-[10px] text-zinc-300 font-bold">
+            {rank}
+          </div>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-sm font-medium text-white mb-1 truncate" title={ad.creativeTitle || ad.name}>
+          {ad.creativeTitle || ad.name}
+        </p>
+        {ad.creativeTitle && (
+          <p className="text-xs text-zinc-600 mb-2 truncate">{ad.name}</p>
+        )}
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          {[
+            { label: "Gasto", value: `R$ ${(ad.gasto || 0).toFixed(0)}` },
+            { label: "Conv.", value: ad.conversas ?? 0 },
+            { label: "CPL", value: ad.conversas > 0 ? `R$ ${(ad.cpl || 0).toFixed(0)}` : "—" },
+          ].map((m) => (
+            <div key={m.label} className="text-center bg-zinc-800 rounded-lg py-2">
+              <p className="text-sm font-bold text-white tabular-nums">{m.value}</p>
+              <p className="text-[10px] text-zinc-500">{m.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-zinc-600 mt-3">
+          <span>CTR {(ad.ctr || 0).toFixed(1)}%</span>
+          <span>CPM R$ {(ad.cpm || 0).toFixed(0)}</span>
+          <span>{(ad.impressoes || 0).toLocaleString("pt-BR")} imp.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientPerfCard({ client, data, period, anomalies }) {
+  const clientAnomalies = (anomalies || []).filter((a) => a.clientId === client.id);
+  const hasCritical = clientAnomalies.some((a) => a.severity === "critical");
+  const hasWarning = clientAnomalies.some((a) => a.severity === "warning");
+  const m = data?.metrics;
+  const t = data?.targets;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
+            style={{ backgroundColor: client.color + "20", border: `1px solid ${client.color}40` }}
+          >
+            {client.emoji}
+          </div>
+          <div>
+            <p className="font-semibold text-white text-sm">{client.name}</p>
+            <p className="text-xs text-zinc-500 font-mono">{client.id}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {hasCritical && <span className="w-2 h-2 rounded-full bg-red-500" title="Alerta crítico" />}
+          {!hasCritical && hasWarning && <span className="w-2 h-2 rounded-full bg-yellow-500" title="Alerta" />}
+          <a
+            href={`/dashboard?client=${client.id}`}
+            className="text-xs text-zinc-500 hover:text-violet-400 transition"
+          >
+            Ver →
+          </a>
+        </div>
+      </div>
+
+      {data?.loading ? (
+        <div className="space-y-2 py-2">
+          <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-3/4" />
+          <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-1/2" />
+          <div className="h-2.5 bg-zinc-800 rounded animate-pulse w-2/3" />
+        </div>
+      ) : !data || data.error || !data.hasData ? (
+        <p className="text-xs text-zinc-600 py-4 text-center italic">
+          {data?.error ? "Erro ao buscar dados" : "Sem dados para o período"}
+        </p>
+      ) : (
+        <>
+          {clientAnomalies.length > 0 && (
+            <div
+              className={`mb-3 px-3 py-1.5 rounded-lg text-xs truncate ${
+                hasCritical
+                  ? "bg-red-500/10 text-red-400"
+                  : "bg-yellow-500/10 text-yellow-400"
+              }`}
+              title={clientAnomalies[0].message}
+            >
+              {clientAnomalies[0].message}
+            </div>
+          )}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {[
+              {
+                label: "Gasto",
+                value: `R$ ${(m.gasto || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`,
+                alert: t?.target_spend > 0 && m.gasto > t.target_spend,
+              },
+              {
+                label: "Conv.",
+                value: m.conversas ?? 0,
+                alert: t?.target_conversas > 0 && m.conversas < t.target_conversas * 0.5,
+              },
+              {
+                label: "CPL",
+                value: m.cpl > 0 ? `R$ ${m.cpl.toFixed(0)}` : "—",
+                alert: t?.target_cpl_max > 0 && m.cpl > t.target_cpl_max,
+              },
+              {
+                label: "CTR",
+                value: `${(m.ctr || 0).toFixed(1)}%`,
+              },
+            ].map((kpi) => (
+              <div key={kpi.label} className="text-center">
+                <p
+                  className={`text-sm font-bold tabular-nums ${
+                    kpi.alert ? "text-red-400" : "text-white"
+                  }`}
+                >
+                  {kpi.value}
+                </p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+          {period === "monthly" && (t?.target_spend > 0 || t?.target_conversas > 0) && (
+            <div className="space-y-2">
+              {t?.target_spend > 0 && (
+                <div>
+                  <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                    <span>Budget mensal</span>
+                    <span>{Math.round((m.gasto / t.target_spend) * 100)}%</span>
+                  </div>
+                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (m.gasto / t.target_spend) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {t?.target_conversas > 0 && (
+                <div>
+                  <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                    <span>Meta conversas</span>
+                    <span>
+                      {m.conversas} / {t.target_conversas}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (m.conversas / t.target_conversas) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, authFetch, logout } = useAuth();
   const [tab, setTab] = useState("clientes");
@@ -318,6 +510,15 @@ export default function AdminPage() {
   const [newClientResult, setNewClientResult] = useState(null);
   const [anomalies, setAnomalies] = useState(null); // null = carregando
   const [deleteError, setDeleteError] = useState("");
+  // Performance tab
+  const [perfData, setPerfData] = useState({});
+  const [perfPeriod, setPerfPeriod] = useState("daily");
+  const [perfSort, setPerfSort] = useState("gasto");
+  // Criativos tab
+  const [creativesClientId, setCreativesClientId] = useState(null);
+  const [creativesPeriod, setCreativesPeriod] = useState("daily");
+  const [creatives, setCreatives] = useState(null);
+  const [creativesLoading, setCreativesLoading] = useState(false);
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -347,6 +548,38 @@ export default function AdminPage() {
     loadClients();
     loadAnomalies();
   }, [loadClients, loadAnomalies]);
+
+  // Auto-select first client for creatives tab
+  useEffect(() => {
+    if (clients.length > 0 && !creativesClientId) {
+      setCreativesClientId(clients[0].id);
+    }
+  }, [clients]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load performance data when tab is active
+  useEffect(() => {
+    if (tab !== "performance" || clients.length === 0) return;
+    const init = {};
+    clients.forEach((c) => { init[c.id] = { loading: true }; });
+    setPerfData(init);
+    for (const c of clients) {
+      authFetch(`/api/insights?client=${c.id}&period=${perfPeriod}`)
+        .then((r) => r.json())
+        .then((d) => setPerfData((prev) => ({ ...prev, [c.id]: d })))
+        .catch(() => setPerfData((prev) => ({ ...prev, [c.id]: { error: true } })));
+    }
+  }, [tab, perfPeriod, clients.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load creatives when tab is active
+  useEffect(() => {
+    if (tab !== "criativos" || !creativesClientId) return;
+    setCreativesLoading(true);
+    setCreatives(null);
+    authFetch(`/api/creatives?client=${creativesClientId}&period=${creativesPeriod}`)
+      .then((r) => r.json())
+      .then((d) => { setCreatives(d.ads || []); setCreativesLoading(false); })
+      .catch(() => { setCreatives([]); setCreativesLoading(false); });
+  }, [tab, creativesClientId, creativesPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDelete(clientId) {
     setDeleting(true);
@@ -414,6 +647,8 @@ export default function AdminPage() {
         <div className="flex gap-2 mb-8">
           {[
             { id: "clientes", label: "Clientes" },
+            { id: "performance", label: "Performance" },
+            { id: "criativos", label: "Criativos" },
             { id: "conexoes", label: "Conexões & API" },
           ].map((t) => (
             <button
@@ -608,6 +843,155 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Performance */}
+        {tab === "performance" && (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+              <h2 className="text-xl font-bold">Performance</h2>
+              <div className="flex items-center gap-2">
+                <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 gap-1">
+                  {[
+                    { id: "daily", label: "Ontem" },
+                    { id: "weekly", label: "Semana" },
+                    { id: "monthly", label: "Mês" },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPerfPeriod(p.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                        perfPeriod === p.id
+                          ? "bg-zinc-800 text-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  value={perfSort}
+                  onChange={(e) => setPerfSort(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500"
+                >
+                  <option value="gasto">↓ Gasto</option>
+                  <option value="conversas">↓ Conversas</option>
+                  <option value="cpl">↑ CPL</option>
+                </select>
+              </div>
+            </div>
+
+            {clients.length === 0 ? (
+              <div className="text-center text-zinc-500 py-16">
+                Nenhum cliente cadastrado.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {[...clients]
+                  .sort((a, b) => {
+                    const da = perfData[a.id];
+                    const db = perfData[b.id];
+                    if (!da?.metrics || !db?.metrics) return 0;
+                    if (perfSort === "cpl") {
+                      return (da.metrics.cpl || 999) - (db.metrics.cpl || 999);
+                    }
+                    return (db.metrics[perfSort] || 0) - (da.metrics[perfSort] || 0);
+                  })
+                  .map((c) => (
+                    <ClientPerfCard
+                      key={c.id}
+                      client={c}
+                      data={perfData[c.id]}
+                      period={perfPeriod}
+                      anomalies={anomalies}
+                    />
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: Criativos */}
+        {tab === "criativos" && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Criativos</h2>
+              <p className="text-xs text-zinc-500">Top 10 anúncios por conversas</p>
+            </div>
+
+            {clients.length === 0 ? (
+              <div className="text-center text-zinc-500 py-16">
+                Nenhum cliente cadastrado.
+              </div>
+            ) : (
+              <>
+                {/* Selectors */}
+                <div className="flex flex-wrap items-center gap-2 mb-6">
+                  <div className="flex flex-wrap gap-2 flex-1">
+                    {clients.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setCreativesClientId(c.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition ${
+                          creativesClientId === c.id
+                            ? "bg-violet-600 text-white"
+                            : "bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                        }`}
+                      >
+                        <span>{c.emoji}</span>
+                        <span>{c.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-1 gap-1 shrink-0">
+                    {[
+                      { id: "daily", label: "Ontem" },
+                      { id: "weekly", label: "Semana" },
+                      { id: "monthly", label: "Mês" },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setCreativesPeriod(p.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                          creativesPeriod === p.id
+                            ? "bg-zinc-800 text-zinc-200"
+                            : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Creatives grid */}
+                {creativesLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="bg-zinc-900 border border-zinc-800 rounded-2xl h-64 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : !creatives || creatives.length === 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-zinc-500">Nenhum criativo com dados para este período.</p>
+                    <p className="text-xs text-zinc-600 mt-2">
+                      Verifique se há campanhas ativas neste período.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {creatives.map((ad, i) => (
+                      <CreativeCard key={ad.adId || i} ad={ad} rank={i + 1} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

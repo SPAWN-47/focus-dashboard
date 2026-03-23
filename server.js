@@ -545,6 +545,89 @@ app.get("/api/campaigns", async (req, res) => {
   }
 });
 
+// ─── CREATIVES (top performing ads) ──────────────────────────────────────────
+
+app.get("/api/creatives", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const { client: clientId, period } = req.query;
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const datePreset = DATE_PRESETS[period] || "yesterday";
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  try {
+    const response = await axios.get(
+      `${META_BASE}/${clientConfig.accountId}/insights`,
+      {
+        params: {
+          fields: "ad_id,ad_name,spend,impressions,clicks,reach,actions",
+          date_preset: datePreset,
+          level: "ad",
+          access_token: clientConfig.token,
+          limit: 50,
+        },
+        timeout: 15000,
+      }
+    );
+
+    const ads = (response.data.data || [])
+      .filter((d) => parseFloat(d.spend || 0) > 0)
+      .map((d) => {
+        const m = computeMetrics(d);
+        return {
+          adId: d.ad_id,
+          name: d.ad_name || "—",
+          gasto: m.gasto,
+          impressoes: m.impressoes,
+          cliques: m.cliques,
+          conversas: m.conversas,
+          cpl: m.cpl,
+          ctr: m.ctr,
+          cpm: m.cpm,
+          thumbnail: null,
+          creativeTitle: null,
+        };
+      });
+
+    ads.sort((a, b) => b.conversas - a.conversas || b.gasto - a.gasto);
+    const top = ads.slice(0, 10);
+
+    // Enrich with creative thumbnails (parallel, best-effort)
+    await Promise.allSettled(
+      top.map(async (ad) => {
+        try {
+          const r = await axios.get(`${META_BASE}/${ad.adId}`, {
+            params: {
+              fields: "creative{thumbnail_url,title,body}",
+              access_token: clientConfig.token,
+            },
+            timeout: 5000,
+          });
+          const creative = r.data.creative;
+          if (creative) {
+            ad.thumbnail = creative.thumbnail_url || null;
+            ad.creativeTitle = creative.title || creative.body?.slice(0, 60) || null;
+          }
+        } catch {
+          // silent — thumbnail is best-effort
+        }
+      })
+    );
+
+    res.json({ hasData: top.length > 0, ads: top });
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(500).json({ error: metaErr?.message || err.message });
+  }
+});
+
 // ─── ANOMALY HISTORY (admin only) ─────────────────────────────────────────────
 
 app.get("/api/anomalies/history", (req, res) => {
