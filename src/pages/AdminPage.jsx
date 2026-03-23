@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
+
 const EMOJI_OPTIONS = ["🏢", "🦷", "🏥", "🚗", "🏋️", "💅", "🍕", "🏠", "👗", "💊", "🎓", "🐾"];
 const COLOR_OPTIONS = [
   "#8B5CF6", "#EF4444", "#F59E0B", "#10B981", "#3B82F6",
@@ -29,6 +30,12 @@ function ClientModal({ client, onClose, onSave }) {
   const [error, setError] = useState("");
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   async function testConnection() {
     setTesting(true);
@@ -84,14 +91,14 @@ function ClientModal({ client, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-white">
               {isEdit ? "Editar Cliente" : "Novo Cliente"}
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+            <button onClick={onClose} className="text-zinc-400 hover:text-white transition">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -101,29 +108,29 @@ function ClientModal({ client, onClose, onSave }) {
           <div className="space-y-4">
             {!isEdit && (
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">ID (slug único)</label>
+                <label className="block text-sm text-zinc-400 mb-1.5">ID (slug único)</label>
                 <input
                   value={form.id}
                   onChange={(e) => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
                   placeholder="ex: minha-empresa"
-                  className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Nome</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Nome</label>
               <input
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="Nome do cliente"
-                className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Emoji</label>
+                <label className="block text-sm text-zinc-400 mb-1.5">Emoji</label>
                 <div className="flex flex-wrap gap-1.5">
                   {EMOJI_OPTIONS.map((e) => (
                     <button
@@ -132,7 +139,7 @@ function ClientModal({ client, onClose, onSave }) {
                       className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition ${
                         form.emoji === e
                           ? "bg-violet-600 ring-2 ring-violet-400"
-                          : "bg-gray-800 hover:bg-gray-700"
+                          : "bg-zinc-800 hover:bg-zinc-700"
                       }`}
                     >
                       {e}
@@ -142,7 +149,7 @@ function ClientModal({ client, onClose, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">Cor</label>
+                <label className="block text-sm text-zinc-400 mb-1.5">Cor</label>
                 <div className="flex flex-wrap gap-1.5">
                   {COLOR_OPTIONS.map((c) => (
                     <button
@@ -150,7 +157,7 @@ function ClientModal({ client, onClose, onSave }) {
                       onClick={() => set("color", c)}
                       style={{ backgroundColor: c }}
                       className={`w-9 h-9 rounded-lg transition ${
-                        form.color === c ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900" : ""
+                        form.color === c ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-900" : ""
                       }`}
                     />
                   ))}
@@ -159,32 +166,32 @@ function ClientModal({ client, onClose, onSave }) {
             </div>
 
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Account ID (Meta)</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Account ID (Meta)</label>
               <input
                 value={form.accountId}
                 onChange={(e) => set("accountId", e.target.value)}
                 placeholder="act_123456789"
-                className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Access Token (Meta)</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Access Token (Meta)</label>
               <textarea
                 value={form.token}
                 onChange={(e) => set("token", e.target.value)}
                 placeholder="EAABx..."
                 rows={3}
-                className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono resize-none"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono resize-none"
               />
             </div>
 
             {/* Targets */}
-            <div className="border-t border-gray-800 pt-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Metas</p>
+            <div className="border-t border-zinc-800 pt-4">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Metas</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Ticket Médio (R$)</label>
+                  <label className="block text-xs text-zinc-400 mb-1">Ticket Médio (R$)</label>
                   <input
                     type="number"
                     min="0"
@@ -192,11 +199,11 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.ticket_medio}
                     onChange={(e) => set("ticket_medio", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">CPL Máximo (R$)</label>
+                  <label className="block text-xs text-zinc-400 mb-1">CPL Máximo (R$)</label>
                   <input
                     type="number"
                     min="0"
@@ -204,11 +211,11 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_cpl_max}
                     onChange={(e) => set("target_cpl_max", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Conversas alvo/mês</label>
+                  <label className="block text-xs text-zinc-400 mb-1">Conversas alvo/mês</label>
                   <input
                     type="number"
                     min="0"
@@ -216,11 +223,11 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_conversas}
                     onChange={(e) => set("target_conversas", e.target.value)}
                     placeholder="0"
-                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Budget mensal (R$)</label>
+                  <label className="block text-xs text-zinc-400 mb-1">Budget mensal (R$)</label>
                   <input
                     type="number"
                     min="0"
@@ -228,7 +235,7 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_spend}
                     onChange={(e) => set("target_spend", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
                   />
                 </div>
               </div>
@@ -238,7 +245,7 @@ function ClientModal({ client, onClose, onSave }) {
             <button
               onClick={testConnection}
               disabled={testing || !form.token || !form.accountId}
-              className="w-full flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 border border-gray-700 text-gray-200 rounded-xl py-2.5 text-sm transition"
+              className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 border border-zinc-700 text-zinc-200 rounded-xl py-2.5 text-sm transition"
             >
               {testing ? (
                 <>
@@ -281,7 +288,7 @@ function ClientModal({ client, onClose, onSave }) {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-xl py-2.5 text-sm transition"
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded-xl py-2.5 text-sm transition"
               >
                 Cancelar
               </button>
@@ -310,6 +317,7 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState(false);
   const [newClientResult, setNewClientResult] = useState(null);
   const [anomalies, setAnomalies] = useState(null); // null = carregando
+  const [deleteError, setDeleteError] = useState("");
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -342,12 +350,13 @@ export default function AdminPage() {
 
   async function handleDelete(clientId) {
     setDeleting(true);
+    setDeleteError("");
     try {
       await authFetch(`/api/config/clients/${clientId}`, { method: "DELETE" });
       await loadClients();
       setDeleteConfirm(null);
     } catch {
-      // silence
+      setDeleteError("Erro ao remover cliente. Tente novamente.");
     } finally {
       setDeleting(false);
     }
@@ -362,9 +371,9 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50">
+      <header className="border-b border-zinc-800 bg-zinc-900/50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
@@ -389,10 +398,10 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-400">{user?.name}</span>
+            <span className="text-sm text-zinc-400">{user?.name}</span>
             <button
               onClick={logout}
-              className="text-gray-400 hover:text-white text-sm transition"
+              className="text-zinc-400 hover:text-white text-sm transition"
             >
               Sair
             </button>
@@ -413,7 +422,7 @@ export default function AdminPage() {
               className={`px-5 py-2 rounded-xl text-sm font-medium transition ${
                 tab === t.id
                   ? "bg-violet-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700"
+                  : "bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700"
               }`}
             >
               {t.label}
@@ -427,24 +436,32 @@ export default function AdminPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-green-400 font-semibold mb-1">Cliente criado com sucesso!</p>
-                <p className="text-gray-300 text-sm">
+                <p className="text-zinc-300 text-sm">
                   Credenciais de acesso geradas automaticamente:
                 </p>
-                <div className="mt-2 font-mono text-sm bg-gray-900 rounded-lg p-3">
+                <div className="mt-2 font-mono text-sm bg-zinc-900 rounded-lg p-3">
                   <div>
-                    <span className="text-gray-500">Usuário: </span>
+                    <span className="text-zinc-500">Usuário: </span>
                     <span className="text-white">{newClientResult.username}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Senha: </span>
+                    <span className="text-zinc-500">Senha: </span>
                     <span className="text-white">{newClientResult.password}</span>
                   </div>
                 </div>
-                <p className="text-gray-500 text-xs mt-2">Anote estas credenciais — a senha não será exibida novamente.</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <p className="text-zinc-500 text-xs">Anote estas credenciais — a senha não será exibida novamente.</p>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(`Login: ${newClientResult.username}\nSenha: ${newClientResult.password}`)}
+                    className="text-xs text-violet-400 hover:text-violet-300 underline transition shrink-0"
+                  >
+                    Copiar credenciais
+                  </button>
+                </div>
               </div>
               <button
                 onClick={() => setNewClientResult(null)}
-                className="text-gray-500 hover:text-white ml-4"
+                className="text-zinc-500 hover:text-white ml-4"
               >
                 ✕
               </button>
@@ -470,7 +487,7 @@ export default function AdminPage() {
 
             {/* Painel de alertas */}
             {anomalies === null ? (
-              <div className="mb-6 flex items-center gap-2 text-xs text-gray-500 bg-gray-900/60 border border-gray-800 rounded-xl px-4 py-3">
+              <div className="mb-6 flex items-center gap-2 text-xs text-zinc-500 bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3">
                 <svg className="w-3.5 h-3.5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
@@ -480,18 +497,18 @@ export default function AdminPage() {
             ) : anomalies.length > 0 && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
                       <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                     </span>
                     Alertas de campanha
-                    <span className="text-gray-600 font-normal">({anomalies.length})</span>
+                    <span className="text-zinc-600 font-normal">({anomalies.length})</span>
                   </h3>
                   <button
                     onClick={loadAnomalies}
-                    className="text-xs text-gray-500 hover:text-gray-300 transition"
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition"
                   >
                     Atualizar
                   </button>
@@ -516,7 +533,7 @@ export default function AdminPage() {
                       </div>
                       <a
                         href={`/dashboard?client=${a.clientId}`}
-                        className="text-xs text-gray-500 hover:text-violet-400 transition shrink-0"
+                        className="text-xs text-zinc-500 hover:text-violet-400 transition shrink-0"
                       >
                         Ver →
                       </a>
@@ -529,11 +546,11 @@ export default function AdminPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl h-40 animate-pulse" />
+                  <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl h-40 animate-pulse" />
                 ))}
               </div>
             ) : clients.length === 0 ? (
-              <div className="text-center text-gray-500 py-16">
+              <div className="text-center text-zinc-500 py-16">
                 Nenhum cliente cadastrado. Clique em "Adicionar Cliente".
               </div>
             ) : (
@@ -541,7 +558,7 @@ export default function AdminPage() {
                 {clients.map((c) => (
                   <div
                     key={c.id}
-                    className="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition group"
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition group"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -553,25 +570,25 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <p className="font-semibold text-white">{c.name}</p>
-                          <p className="text-xs text-gray-500 font-mono">{c.id}</p>
+                          <p className="text-xs text-zinc-500 font-mono">{c.id}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="text-xs text-gray-500 font-mono truncate mb-4">
+                    <div className="text-xs text-zinc-500 font-mono truncate mb-4">
                       {c.accountId}
                     </div>
 
                     <div className="flex gap-2">
                       <a
                         href={`/dashboard?client=${c.id}`}
-                        className="flex-1 text-center bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium rounded-lg py-2 transition"
+                        className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-medium rounded-lg py-2 transition"
                       >
                         Ver Dashboard
                       </a>
                       <button
                         onClick={() => setModal(c)}
-                        className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition"
+                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-lg transition"
                         title="Editar"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -611,41 +628,41 @@ export default function AdminPage() {
               </button>
             </div>
 
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               {loading ? (
-                <div className="p-8 text-center text-gray-500">Carregando...</div>
+                <div className="p-8 text-center text-zinc-500">Carregando...</div>
               ) : clients.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">Nenhuma conexão configurada.</div>
+                <div className="p-8 text-center text-zinc-500">Nenhuma conexão configurada.</div>
               ) : (
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-800">
-                      <th className="text-left text-xs text-gray-500 font-medium px-6 py-3">Cliente</th>
-                      <th className="text-left text-xs text-gray-500 font-medium px-6 py-3">Account ID</th>
-                      <th className="text-left text-xs text-gray-500 font-medium px-6 py-3">Token</th>
-                      <th className="text-right text-xs text-gray-500 font-medium px-6 py-3">Ações</th>
+                    <tr className="border-b border-zinc-800">
+                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Cliente</th>
+                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Account ID</th>
+                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Token</th>
+                      <th className="text-right text-xs text-zinc-500 font-medium px-6 py-3">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {clients.map((c, i) => (
                       <tr
                         key={c.id}
-                        className={`${i < clients.length - 1 ? "border-b border-gray-800" : ""}`}
+                        className={`${i < clients.length - 1 ? "border-b border-zinc-800" : ""}`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
                             <span className="text-xl">{c.emoji}</span>
                             <div>
                               <p className="text-sm font-medium text-white">{c.name}</p>
-                              <p className="text-xs text-gray-500 font-mono">{c.id}</p>
+                              <p className="text-xs text-zinc-500 font-mono">{c.id}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-xs font-mono text-gray-400">{c.accountId}</span>
+                          <span className="text-xs font-mono text-zinc-400">{c.accountId}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-xs font-mono text-gray-500">
+                          <span className="text-xs font-mono text-zinc-500">
                             {c.token ? `${c.token.slice(0, 12)}...${c.token.slice(-6)}` : "—"}
                           </span>
                         </td>
@@ -653,7 +670,7 @@ export default function AdminPage() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setModal(c)}
-                              className="text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition"
+                              className="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition"
                             >
                               Editar
                             </button>
@@ -673,26 +690,26 @@ export default function AdminPage() {
             </div>
 
             {/* Users info */}
-            <div className="mt-6 bg-gray-900/50 border border-gray-800 rounded-2xl p-5">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">Credenciais de Acesso</h3>
+            <div className="mt-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+              <h3 className="text-sm font-semibold text-zinc-300 mb-3">Credenciais de Acesso</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {clients.map((c) => {
                   const username = c.id.replace(/-/g, "");
                   return (
-                    <div key={c.id} className="bg-gray-800 rounded-xl p-3">
+                    <div key={c.id} className="bg-zinc-800 rounded-xl p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span>{c.emoji}</span>
                         <span className="text-sm font-medium text-white">{c.name}</span>
                       </div>
-                      <div className="font-mono text-xs text-gray-400 space-y-0.5">
-                        <div><span className="text-gray-600">login: </span>{username}</div>
-                        <div><span className="text-gray-600">senha: </span>{username}</div>
+                      <div className="font-mono text-xs text-zinc-400 space-y-0.5">
+                        <div><span className="text-zinc-600">login: </span>{username}</div>
+                        <div className="text-zinc-600 italic">Senha definida no primeiro acesso</div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-xs text-gray-600 mt-3">
+              <p className="text-xs text-zinc-600 mt-3">
                 * Para alterar senhas, edite config/users.json diretamente no servidor.
               </p>
             </div>
@@ -712,16 +729,17 @@ export default function AdminPage() {
       {/* Delete confirm */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm">
             <h3 className="text-lg font-bold text-white mb-2">Remover cliente?</h3>
-            <p className="text-gray-400 text-sm mb-6">
+            <p className="text-zinc-400 text-sm mb-4">
               Tem certeza que deseja remover <strong className="text-white">{deleteConfirm.name}</strong>?
               Esta ação não pode ser desfeita.
             </p>
+            {deleteError && <p className="text-red-400 text-xs mb-4">{deleteError}</p>}
             <div className="flex gap-3">
               <button
-                onClick={() => setDeleteConfirm(null)}
-                className="flex-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-xl py-2.5 text-sm"
+                onClick={() => { setDeleteConfirm(null); setDeleteError(""); }}
+                className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-xl py-2.5 text-sm"
               >
                 Cancelar
               </button>

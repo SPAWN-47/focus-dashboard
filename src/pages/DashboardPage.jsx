@@ -268,6 +268,8 @@ const FunnelViz = ({ metrics, clientColor }) => {
 // ─────────────────────────────────────────────
 
 const TrendChart = ({ days, metric, color, label }) => {
+  const [hovered, setHovered] = useState(null);
+
   const values = days.map((d) => d[metric]);
   const maxVal = Math.max(...values, 0.01);
   const minVal = Math.min(...values, 0);
@@ -294,9 +296,33 @@ const TrendChart = ({ days, metric, color, label }) => {
     ? new Date(days[days.length - 1].date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
     : "";
 
+  function handleMouseMove(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const svgX = ((e.clientX - rect.left) / rect.width) * W;
+    const idx = Math.round(((svgX - padX) / chartW) * (days.length - 1));
+    const clipped = Math.max(0, Math.min(days.length - 1, idx));
+    setHovered(clipped);
+  }
+
+  const hoveredPt = hovered !== null ? pts[hovered] : null;
+  const hoveredDay = hovered !== null ? days[hovered] : null;
+  const hoveredDate = hoveredDay?.date
+    ? new Date(hoveredDay.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+    : "";
+  const hoveredVal = hoveredDay ? hoveredDay[metric] : null;
+  const isMonetary = metric === "gasto" || metric === "cpl" || metric === "cpm";
+
+  const tooltipX = hoveredPt ? Math.min(hoveredPt[0], W - 70) : 0;
+  const tooltipY = hoveredPt ? Math.max(hoveredPt[1] - 36, padY) : 0;
+
   return (
     <div className="w-full">
-      <svg viewBox={`0 0 ${W} ${H + 20}`} className="w-full overflow-visible">
+      <svg
+        viewBox={`0 0 ${W} ${H + 20}`}
+        className="w-full overflow-visible"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHovered(null)}
+      >
         <defs>
           <linearGradient id={`trend-area-${metric}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.35" />
@@ -323,8 +349,22 @@ const TrendChart = ({ days, metric, color, label }) => {
         {/* Line */}
         <path d={linePath} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
 
-        {/* Dots on hover-ish - show last point */}
-        {pts.length > 0 && (
+        {/* Vertical hover line */}
+        {hoveredPt && (
+          <line
+            x1={hoveredPt[0]}
+            y1={padY}
+            x2={hoveredPt[0]}
+            y2={H}
+            stroke={color}
+            strokeWidth="1"
+            strokeDasharray="3,3"
+            strokeOpacity="0.6"
+          />
+        )}
+
+        {/* Dots: last point always visible, hovered point larger */}
+        {pts.length > 0 && hovered !== pts.length - 1 && (
           <circle
             cx={pts[pts.length - 1][0]}
             cy={pts[pts.length - 1][1]}
@@ -334,6 +374,41 @@ const TrendChart = ({ days, metric, color, label }) => {
             strokeWidth="2"
           />
         )}
+        {hoveredPt && (
+          <circle
+            cx={hoveredPt[0]}
+            cy={hoveredPt[1]}
+            r="5"
+            fill={color}
+            stroke="#0f172a"
+            strokeWidth="2"
+          />
+        )}
+
+        {/* Tooltip box */}
+        {hoveredPt && hoveredDay && (
+          <g>
+            <rect
+              x={tooltipX - 2}
+              y={tooltipY - 2}
+              width="72"
+              height="30"
+              rx="4"
+              fill="#18181b"
+              stroke="#3f3f46"
+              strokeWidth="1"
+            />
+            <text x={tooltipX + 2} y={tooltipY + 10} fill="#a1a1aa" fontSize="8" fontFamily="system-ui">
+              {hoveredDate}
+            </text>
+            <text x={tooltipX + 2} y={tooltipY + 22} fill={color} fontSize="9" fontFamily="system-ui" fontWeight="700">
+              {isMonetary ? `R$ ${fBRL(hoveredVal)}` : fNum(hoveredVal)}
+            </text>
+          </g>
+        )}
+
+        {/* Invisible capture rect */}
+        <rect x={padX} y={padY} width={chartW} height={chartH} fill="transparent" />
 
         {/* Date labels */}
         <text x={padX} y={H + 16} fill="#6B7280" fontSize="9" fontFamily="system-ui">
@@ -437,7 +512,7 @@ export default function DashboardPage() {
 
   // For client role: lock to their clientId; for admin: allow selection
   const urlClient = new URL(window.location.href).searchParams.get("client");
-  const defaultClient = isAdmin ? (urlClient || "vila-odonto") : user.clientId;
+  const defaultClient = isAdmin ? (urlClient || null) : user.clientId;
 
   const [clients, setClients] = useState([]);
   const [activeClient, setActiveClient] = useState(defaultClient);
@@ -450,6 +525,7 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [campaignSort, setCampaignSort] = useState({ key: "gasto", dir: "desc" });
 
   // Load client list from API
   useEffect(() => {
@@ -458,6 +534,12 @@ export default function DashboardPage() {
       .then((data) => setClients(Array.isArray(data) ? data : []))
       .catch(() => setClients([]));
   }, []);
+
+  useEffect(() => {
+    if (isAdmin && !activeClient && clients.length > 0) {
+      setActiveClient(clients[0].id);
+    }
+  }, [clients, isAdmin, activeClient]);
 
   const currentClient = clients.find((c) => c.id === activeClient) || { id: activeClient, name: "", emoji: "", color: "#8B5CF6" };
 
@@ -542,7 +624,7 @@ export default function DashboardPage() {
               <Logo className="w-4 h-4 text-violet-500" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Chat<span className="text-violet-500">Focus</span>
+              Focus <span className="text-violet-500">Dashboard</span>
             </span>
           </div>
 
@@ -702,85 +784,104 @@ export default function DashboardPage() {
                 className="space-y-6"
               >
                 {/* KPI CARDS */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  <KpiCard
-                    label="Investimento"
-                    value={`R$ ${fBRL(metrics.gasto)}`}
-                    icon={DollarSign}
-                    color={currentClient?.color}
-                    delay={0}
-                    delta={delta?.gasto}
-                  />
-                  <KpiCard
-                    label="Impressões"
-                    value={fNum(metrics.impressoes)}
-                    icon={Eye}
-                    color="#6366F1"
-                    delay={0.05}
-                    delta={delta?.impressoes}
-                  />
-                  <KpiCard
-                    label="Alcance"
-                    value={fNum(metrics.alcance)}
-                    icon={Users}
-                    color="#3B82F6"
-                    delay={0.08}
-                  />
-                  <KpiCard
-                    label="Cliques"
-                    value={fNum(metrics.cliques)}
-                    icon={MousePointer}
-                    color="#06B6D4"
-                    delay={0.11}
-                    delta={delta?.cliques}
-                  />
-                  <KpiCard
-                    label="Conversas/Leads"
-                    value={fNum(metrics.conversas)}
-                    sub="WhatsApp / Lead"
-                    icon={MessageCircle}
-                    color="#10B981"
-                    delay={0.14}
-                    delta={delta?.conversas}
-                  />
-                  <KpiCard
-                    label="CTR"
-                    value={fPct(metrics.ctr)}
-                    sub="Tx. clique/impressão"
-                    icon={TrendingUp}
-                    color="#F59E0B"
-                    delay={0.17}
-                  />
-                  <KpiCard
-                    label="CPM"
-                    value={metrics.impressoes > 0 ? `R$ ${fBRL(metrics.cpm)}` : "N/A"}
-                    sub="Custo por mil impressões"
-                    icon={Target}
-                    color="#A78BFA"
-                    delay={0.2}
-                    delta={delta?.cpm}
-                    lowerIsBetter
-                  />
-                  <KpiCard
-                    label="CPL"
-                    value={metrics.conversas > 0 ? `R$ ${fBRL(metrics.cpl)}` : "N/A"}
-                    sub="Custo por conversa"
-                    icon={BarChart3}
-                    color={currentClient?.color}
-                    delay={0.23}
-                    delta={delta?.cpl}
-                    lowerIsBetter
-                  />
-                  {metrics.roas !== null && metrics.roas !== undefined && (
+                <div>
+                  <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Tráfego</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <KpiCard
-                      label="ROAS"
-                      value={`${metrics.roas.toFixed(2)}x`}
-                      sub={`R$ ${fBRL(targets.ticket_medio)} ticket médio`}
-                      icon={TrendingUp}
-                      color="#34D399"
-                      delay={0.26}
+                      label="Investimento"
+                      value={`R$ ${fBRL(metrics.gasto)}`}
+                      icon={DollarSign}
+                      color={currentClient?.color}
+                      delay={0}
+                      delta={delta?.gasto}
                     />
-                  )}
+                    <KpiCard
+                      label="Impressões"
+                      value={fNum(metrics.impressoes)}
+                      icon={Eye}
+                      color="#6366F1"
+                      delay={0.05}
+                      delta={delta?.impressoes}
+                    />
+                    <KpiCard
+                      label="Alcance"
+                      value={fNum(metrics.alcance)}
+                      icon={Users}
+                      color="#3B82F6"
+                      delay={0.08}
+                      delta={delta?.alcance}
+                    />
+                    <KpiCard
+                      label="Cliques"
+                      value={fNum(metrics.cliques)}
+                      icon={MousePointer}
+                      color="#06B6D4"
+                      delay={0.11}
+                      delta={delta?.cliques}
+                    />
+                    <KpiCard
+                      label="Conversas/Leads"
+                      value={fNum(metrics.conversas)}
+                      sub="WhatsApp / Lead"
+                      icon={MessageCircle}
+                      color="#10B981"
+                      delay={0.14}
+                      delta={delta?.conversas}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Eficiência</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <KpiCard
+                      label="CTR"
+                      value={fPct(metrics.ctr)}
+                      sub="Tx. clique/impressão"
+                      icon={TrendingUp}
+                      color="#F59E0B"
+                      delay={0.17}
+                    />
+                    <KpiCard
+                      label="CPM"
+                      value={metrics.impressoes > 0 ? `R$ ${fBRL(metrics.cpm)}` : "N/A"}
+                      sub="Custo por mil impressões"
+                      icon={Target}
+                      color="#A78BFA"
+                      delay={0.2}
+                      delta={delta?.cpm}
+                      lowerIsBetter
+                    />
+                    <KpiCard
+                      label="CPC"
+                      value={metrics.cliques > 0 ? `R$ ${fBRL(metrics.cpc)}` : "N/A"}
+                      sub="Custo por clique"
+                      icon={Target}
+                      color="#EC4899"
+                      delay={0.2}
+                      lowerIsBetter
+                    />
+                    <KpiCard
+                      label="CPL"
+                      value={metrics.conversas > 0 ? `R$ ${fBRL(metrics.cpl)}` : "N/A"}
+                      sub="Custo por conversa"
+                      icon={BarChart3}
+                      color={currentClient?.color}
+                      delay={0.23}
+                      delta={delta?.cpl}
+                      lowerIsBetter
+                    />
+                    {metrics.roas !== null && metrics.roas !== undefined && (
+                      <KpiCard
+                        label="ROAS"
+                        value={`${metrics.roas.toFixed(2)}x`}
+                        sub={`R$ ${fBRL(targets.ticket_medio)} ticket médio`}
+                        icon={TrendingUp}
+                        color="#34D399"
+                        delay={0.26}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* STATUS BADGE */}
@@ -943,7 +1044,7 @@ export default function DashboardPage() {
                     className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
                   >
                     <h2 className="text-sm font-bold text-zinc-100 mb-4">
-                      Distribuição — Cliques vs Conversas (30 dias)
+                      Distribuição — Cliques vs Conversas (21 dias)
                     </h2>
                     <div className="flex gap-1 items-end w-full overflow-hidden" style={{ height: 112 }}>
                       {trendData.days.slice(-21).map((d, i) => {
@@ -1014,36 +1115,87 @@ export default function DashboardPage() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="text-zinc-500 border-b border-zinc-800">
-                            <th className="text-left pb-2 font-medium pr-4">Campanha</th>
-                            <th className="text-right pb-2 font-medium px-3">Invest.</th>
-                            <th className="text-right pb-2 font-medium px-3">Impr.</th>
-                            <th className="text-right pb-2 font-medium px-3">Cliques</th>
-                            <th className="text-right pb-2 font-medium px-3">Conv.</th>
-                            <th className="text-right pb-2 font-medium pl-3">CPL</th>
+                            {[
+                              { key: "name", label: "Campanha", align: "left", cls: "pr-4" },
+                              { key: "gasto", label: "Invest.", align: "right", cls: "px-3" },
+                              { key: "impressoes", label: "Impr.", align: "right", cls: "px-3" },
+                              { key: "cliques", label: "Cliques", align: "right", cls: "px-3" },
+                              { key: "conversas", label: "Conv.", align: "right", cls: "px-3" },
+                              { key: "cpl", label: "CPL", align: "right", cls: "pl-3" },
+                            ].map((col) => (
+                              <th
+                                key={col.key}
+                                className={`pb-2 font-medium ${col.cls} text-${col.align} cursor-pointer select-none hover:text-zinc-300 transition-colors`}
+                                onClick={() =>
+                                  setCampaignSort((s) =>
+                                    s.key === col.key
+                                      ? { key: col.key, dir: s.dir === "asc" ? "desc" : "asc" }
+                                      : { key: col.key, dir: "desc" }
+                                  )
+                                }
+                              >
+                                {col.label}
+                                {campaignSort.key === col.key && (
+                                  <span className="ml-1">{campaignSort.dir === "asc" ? "▲" : "▼"}</span>
+                                )}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {campaignData.campaigns.map((c, i) => (
-                            <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                              <td className="py-2.5 pr-4 text-zinc-300 font-medium max-w-[200px] truncate">{c.name}</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-200 font-mono">R$ {fBRL(c.gasto)}</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.impressoes)}</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.cliques)}</td>
-                              <td className="py-2.5 px-3 text-right">
-                                <span className={`font-semibold ${c.conversas > 0 ? "text-emerald-400" : "text-zinc-600"}`}>
-                                  {fNum(c.conversas)}
-                                </span>
-                              </td>
-                              <td className="py-2.5 pl-3 text-right">
-                                {c.conversas > 0 ? (
-                                  <span className="text-zinc-200 font-mono">R$ {fBRL(c.cpl)}</span>
-                                ) : (
-                                  <span className="text-zinc-600">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {[...campaignData.campaigns]
+                            .sort((a, b) => {
+                              const aVal = a[campaignSort.key] ?? 0;
+                              const bVal = b[campaignSort.key] ?? 0;
+                              if (typeof aVal === "string") {
+                                return campaignSort.dir === "asc"
+                                  ? aVal.localeCompare(bVal)
+                                  : bVal.localeCompare(aVal);
+                              }
+                              return campaignSort.dir === "asc" ? aVal - bVal : bVal - aVal;
+                            })
+                            .map((c, i) => (
+                              <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                                <td className="py-2.5 pr-4 text-zinc-300 font-medium max-w-[200px] truncate">{c.name}</td>
+                                <td className="py-2.5 px-3 text-right text-zinc-200 font-mono">R$ {fBRL(c.gasto)}</td>
+                                <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.impressoes)}</td>
+                                <td className="py-2.5 px-3 text-right text-zinc-400 font-mono">{fNum(c.cliques)}</td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <span className={`font-semibold ${c.conversas > 0 ? "text-emerald-400" : "text-zinc-600"}`}>
+                                    {fNum(c.conversas)}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 pl-3 text-right">
+                                  {c.conversas > 0 ? (
+                                    <span className="text-zinc-200 font-mono">R$ {fBRL(c.cpl)}</span>
+                                  ) : (
+                                    <span className="text-zinc-600">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
                         </tbody>
+                        <tfoot>
+                          {(() => {
+                            const totalGasto = campaignData.campaigns.reduce((s, c) => s + c.gasto, 0);
+                            const totalImpressoes = campaignData.campaigns.reduce((s, c) => s + c.impressoes, 0);
+                            const totalCliques = campaignData.campaigns.reduce((s, c) => s + c.cliques, 0);
+                            const totalConversas = campaignData.campaigns.reduce((s, c) => s + c.conversas, 0);
+                            const totalCpl = totalConversas > 0 ? totalGasto / totalConversas : null;
+                            return (
+                              <tr className="border-t-2 border-zinc-700 text-zinc-200 font-semibold">
+                                <td className="py-2.5 pr-4">Total</td>
+                                <td className="py-2.5 px-3 text-right font-mono">R$ {fBRL(totalGasto)}</td>
+                                <td className="py-2.5 px-3 text-right font-mono">{fNum(totalImpressoes)}</td>
+                                <td className="py-2.5 px-3 text-right font-mono">{fNum(totalCliques)}</td>
+                                <td className="py-2.5 px-3 text-right font-mono">{fNum(totalConversas)}</td>
+                                <td className="py-2.5 pl-3 text-right font-mono">
+                                  {totalCpl !== null ? `R$ ${fBRL(totalCpl)}` : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })()}
+                        </tfoot>
                       </table>
                     </div>
                   </motion.div>
