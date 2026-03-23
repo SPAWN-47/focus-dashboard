@@ -78,6 +78,16 @@ app.use(
 // Parse JSON body
 app.use(express.json({ limit: "10kb" }));
 
+// Request logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} ${ms}ms`);
+  });
+  next();
+});
+
 // Rate limit on login endpoint
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
@@ -88,6 +98,15 @@ const loginLimiter = rateLimit({
 });
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function requireAuth(req, res) {
+  const user = verifyToken(req.headers["authorization"]);
+  if (!user) {
+    res.status(401).json({ error: "Não autenticado" });
+    return null;
+  }
+  return user;
+}
 
 function requireAdmin(req, res) {
   const user = verifyToken(req.headers["authorization"]);
@@ -276,7 +295,16 @@ app.post("/api/config/test-connection", async (req, res) => {
 // ─── INSIGHTS ─────────────────────────────────────────────────────────────────
 
 app.get("/api/insights", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const { client: clientId, period } = req.query;
+
+  // Clients can only access their own data
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
   const clients = loadClients();
   const clientConfig = clients[clientId];
   const datePreset = DATE_PRESETS[period];
@@ -338,7 +366,16 @@ app.get("/api/insights", async (req, res) => {
 // ─── TREND ────────────────────────────────────────────────────────────────────
 
 app.get("/api/trend", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const { client: clientId } = req.query;
+
+  // Clients can only access their own data
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
   const clients = loadClients();
   const clientConfig = clients[clientId];
 

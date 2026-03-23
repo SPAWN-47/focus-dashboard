@@ -399,7 +399,7 @@ const DashboardSkeleton = () => (
 // ─────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, authFetch } = useAuth();
 
   // Redirect if not authenticated
   if (!user) {
@@ -441,7 +441,7 @@ export default function DashboardPage() {
       setError(null);
 
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `/api/insights?client=${activeClient}&period=${activePeriod}`
         );
         const json = await res.json();
@@ -462,7 +462,7 @@ export default function DashboardPage() {
   const fetchTrend = useCallback(async () => {
     setTrendLoading(true);
     try {
-      const res = await fetch(`/api/trend?client=${activeClient}`);
+      const res = await authFetch(`/api/trend?client=${activeClient}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setTrendData(json);
