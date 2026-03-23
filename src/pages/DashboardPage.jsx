@@ -64,7 +64,20 @@ const Logo = ({ className = "" }) => (
 // KPI CARD
 // ─────────────────────────────────────────────
 
-const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
+const DeltaBadge = ({ delta, lowerIsBetter = false }) => {
+  if (delta === null || delta === undefined) return null;
+  const isPositive = delta >= 0;
+  const isGood = lowerIsBetter ? !isPositive : isPositive;
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+      isGood ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+    }`}>
+      {isPositive ? "+" : ""}{delta.toFixed(1)}%
+    </span>
+  );
+};
+
+const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null, lowerIsBetter = false }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -78,7 +91,10 @@ const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
       </span>
     </div>
     <div className="text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
-    {sub && <div className="text-[11px] text-zinc-500">{sub}</div>}
+    <div className="flex items-center justify-between min-h-[16px]">
+      {sub && <div className="text-[11px] text-zinc-500">{sub}</div>}
+      <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
+    </div>
   </motion.div>
 );
 
@@ -335,25 +351,35 @@ const TrendChart = ({ days, metric, color, label }) => {
 // CPL STATUS BADGE
 // ─────────────────────────────────────────────
 
-const CplStatus = ({ cpl, conversas }) => {
+const CplStatus = ({ cpl, conversas, targetCplMax = 0 }) => {
   let status, color, Icon, bg;
+  // Use configured target if available, otherwise fall back to defaults
+  const limOtimo = targetCplMax > 0 ? targetCplMax * 0.7 : 20;
+  const limOk = targetCplMax > 0 ? targetCplMax : 40;
+
   if (conversas === 0) {
     status = "Sem conversas no período";
     color = "text-zinc-400";
     bg = "bg-zinc-800/50 border-zinc-700/50";
     Icon = AlertCircle;
-  } else if (cpl <= 15) {
-    status = "CPL Ótimo — performance excelente";
+  } else if (cpl <= limOtimo) {
+    status = targetCplMax > 0
+      ? `CPL Ótimo — abaixo de 70% do target`
+      : "CPL Ótimo — performance excelente";
     color = "text-emerald-400";
     bg = "bg-emerald-500/10 border-emerald-500/20";
     Icon = CheckCircle2;
-  } else if (cpl <= 30) {
-    status = "CPL Dentro do esperado";
+  } else if (cpl <= limOk) {
+    status = targetCplMax > 0
+      ? `CPL dentro do target (R$ ${targetCplMax.toFixed(0)})`
+      : "CPL Dentro do esperado";
     color = "text-amber-400";
     bg = "bg-amber-500/10 border-amber-500/20";
     Icon = AlertCircle;
   } else {
-    status = "CPL Alto — revisar segmentação";
+    status = targetCplMax > 0
+      ? `CPL Alto — acima do target R$ ${targetCplMax.toFixed(0)}`
+      : "CPL Alto — revisar segmentação";
     color = "text-red-400";
     bg = "bg-red-500/10 border-red-500/20";
     Icon = XCircle;
@@ -479,6 +505,8 @@ export default function DashboardPage() {
   }, [fetchInsights, fetchTrend]);
 
   const metrics = data?.metrics || null;
+  const delta = data?.delta || null;
+  const targets = data?.targets || {};
   const hasTrend = trendData?.hasData && trendData.days?.length > 1;
 
   return (
@@ -669,6 +697,7 @@ export default function DashboardPage() {
                     icon={DollarSign}
                     color={currentClient?.color}
                     delay={0}
+                    delta={delta?.gasto}
                   />
                   <KpiCard
                     label="Impressões"
@@ -676,6 +705,7 @@ export default function DashboardPage() {
                     icon={Eye}
                     color="#6366F1"
                     delay={0.05}
+                    delta={delta?.impressoes}
                   />
                   <KpiCard
                     label="Alcance"
@@ -690,6 +720,7 @@ export default function DashboardPage() {
                     icon={MousePointer}
                     color="#06B6D4"
                     delay={0.11}
+                    delta={delta?.cliques}
                   />
                   <KpiCard
                     label="Conversas/Leads"
@@ -698,6 +729,7 @@ export default function DashboardPage() {
                     icon={MessageCircle}
                     color="#10B981"
                     delay={0.14}
+                    delta={delta?.conversas}
                   />
                   <KpiCard
                     label="CTR"
@@ -708,12 +740,14 @@ export default function DashboardPage() {
                     delay={0.17}
                   />
                   <KpiCard
-                    label="CPC"
-                    value={metrics.cliques > 0 ? `R$ ${fBRL(metrics.cpc)}` : "N/A"}
-                    sub="Custo por clique"
+                    label="CPM"
+                    value={metrics.impressoes > 0 ? `R$ ${fBRL(metrics.cpm)}` : "N/A"}
+                    sub="Custo por mil impressões"
                     icon={Target}
-                    color="#EC4899"
+                    color="#A78BFA"
                     delay={0.2}
+                    delta={delta?.cpm}
+                    lowerIsBetter
                   />
                   <KpiCard
                     label="CPL"
@@ -722,11 +756,27 @@ export default function DashboardPage() {
                     icon={BarChart3}
                     color={currentClient?.color}
                     delay={0.23}
+                    delta={delta?.cpl}
+                    lowerIsBetter
                   />
+                  {metrics.roas !== null && metrics.roas !== undefined && (
+                    <KpiCard
+                      label="ROAS"
+                      value={`${metrics.roas.toFixed(2)}x`}
+                      sub={`R$ ${fBRL(targets.ticket_medio)} ticket médio`}
+                      icon={TrendingUp}
+                      color="#34D399"
+                      delay={0.26}
+                    />
+                  )}
                 </div>
 
                 {/* STATUS BADGE */}
-                <CplStatus cpl={metrics.cpl} conversas={metrics.conversas} />
+                <CplStatus
+                  cpl={metrics.cpl}
+                  conversas={metrics.conversas}
+                  targetCplMax={targets.target_cpl_max || 0}
+                />
 
                 {/* FUNNEL + TREND */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

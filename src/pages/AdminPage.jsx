@@ -18,6 +18,10 @@ function ClientModal({ client, onClose, onSave }) {
     color: client?.color || "#8B5CF6",
     token: client?.token || "",
     accountId: client?.accountId || "",
+    ticket_medio: client?.ticket_medio || "",
+    target_cpl_max: client?.target_cpl_max || "",
+    target_conversas: client?.target_conversas || "",
+    target_spend: client?.target_spend || "",
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -57,6 +61,10 @@ function ClientModal({ client, onClose, onSave }) {
             color: form.color,
             token: form.token,
             accountId: form.accountId,
+            ticket_medio: parseFloat(form.ticket_medio) || 0,
+            target_cpl_max: parseFloat(form.target_cpl_max) || 0,
+            target_conversas: parseInt(form.target_conversas) || 0,
+            target_spend: parseFloat(form.target_spend) || 0,
           }),
         });
       } else {
@@ -169,6 +177,61 @@ function ClientModal({ client, onClose, onSave }) {
                 rows={3}
                 className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono resize-none"
               />
+            </div>
+
+            {/* Targets */}
+            <div className="border-t border-gray-800 pt-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Metas</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Ticket Médio (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.ticket_medio}
+                    onChange={(e) => set("ticket_medio", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">CPL Máximo (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.target_cpl_max}
+                    onChange={(e) => set("target_cpl_max", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Conversas alvo/mês</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.target_conversas}
+                    onChange={(e) => set("target_conversas", e.target.value)}
+                    placeholder="0"
+                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Budget mensal (R$)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.target_spend}
+                    onChange={(e) => set("target_spend", e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Test Connection */}

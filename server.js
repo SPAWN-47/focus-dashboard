@@ -41,6 +41,9 @@ import {
   logAnomaly,
   getAnomalyHistory,
   getLastCollectionTime,
+  getClient,
+  getPreviousPeriodMetrics,
+  getRecentCplStats,
 } from "./lib/db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -204,7 +207,10 @@ app.get("/api/config/clients", (req, res) => {
 
 app.post("/api/config/clients", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const { id, name, emoji, color, token: apiToken, accountId } = req.body || {};
+  const {
+    id, name, emoji, color, token: apiToken, accountId,
+    ticket_medio, target_cpl_max, target_conversas, target_spend,
+  } = req.body || {};
   if (!id || !name || !apiToken || !accountId) {
     return res
       .status(400)
@@ -222,6 +228,10 @@ app.post("/api/config/clients", async (req, res) => {
     color: color || "#6B7280",
     token: apiToken,
     accountId,
+    ticket_medio: parseFloat(ticket_medio) || 0,
+    target_cpl_max: parseFloat(target_cpl_max) || 0,
+    target_conversas: parseInt(target_conversas) || 0,
+    target_spend: parseFloat(target_spend) || 0,
   };
   saveClients(clients);
 
@@ -346,6 +356,35 @@ app.get("/api/insights", async (req, res) => {
     const cpl = conversas > 0 ? gasto / conversas : 0;
     const ctr = impressoes > 0 ? (cliques / impressoes) * 100 : 0;
     const cpc = cliques > 0 ? gasto / cliques : 0;
+    const cpm = impressoes > 0 ? (gasto / impressoes) * 1000 : 0;
+    const frequencia = alcance > 0 ? impressoes / alcance : 0;
+
+    // ROAS requires ticket_medio configured on client
+    const clientData = getClient(clientId);
+    const roas =
+      clientData?.ticket_medio > 0 && conversas > 0 && gasto > 0
+        ? (conversas * clientData.ticket_medio) / gasto
+        : null;
+
+    const targets = {
+      ticket_medio: clientData?.ticket_medio || 0,
+      target_conversas: clientData?.target_conversas || 0,
+      target_cpl_max: clientData?.target_cpl_max || 0,
+      target_spend: clientData?.target_spend || 0,
+    };
+
+    // Period-over-period delta from history
+    const prev = getPreviousPeriodMetrics(clientId, period);
+    const delta = prev
+      ? {
+          gasto: prev.gasto > 0 ? ((gasto - prev.gasto) / prev.gasto) * 100 : null,
+          impressoes: prev.impressoes > 0 ? ((impressoes - prev.impressoes) / prev.impressoes) * 100 : null,
+          cliques: prev.cliques > 0 ? ((cliques - prev.cliques) / prev.cliques) * 100 : null,
+          conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
+          cpl: prev.cpl > 0 ? ((cpl - prev.cpl) / prev.cpl) * 100 : null,
+          cpm: prev.cpm > 0 ? ((cpm - prev.cpm) / prev.cpm) * 100 : null,
+        }
+      : null;
 
     const payload = {
       hasData: true,
@@ -353,7 +392,9 @@ app.get("/api/insights", async (req, res) => {
       clientId,
       period,
       convType,
-      metrics: { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc },
+      targets,
+      delta,
+      metrics: { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpc, cpm, frequencia, roas },
     };
     setCachedInsights(clientId, period, payload);
     res.json(payload);
@@ -449,16 +490,42 @@ app.get("/api/anomalies", async (req, res) => {
         const impressions = parseInt(raw.impressions || 0);
         const { value: conversas } = extractConversions(raw.actions || []);
         const anomalies = [];
+
+        // Use target_spend to derive a spend threshold; fallback to R$15
+        const spendThreshold = c.target_spend > 0 ? c.target_spend * 0.005 : 15;
+
         if (spend === 0 && impressions === 0) {
           const a = { ...base, type: "parada", severity: "critical", message: "Campanha sem atividade ontem" };
           anomalies.push(a);
           logAnomaly(id, a.type, a.severity, a.message);
-        } else if (spend > 15 && conversas === 0) {
+        } else if (spend > spendThreshold && conversas === 0) {
           const msg = `R$ ${spend.toFixed(2)} investidos sem conversas`;
           const a = { ...base, type: "sem_conversas", severity: "warning", message: msg };
           anomalies.push(a);
           logAnomaly(id, a.type, a.severity, a.message);
         }
+
+        // CPL above configured target
+        if (c.target_cpl_max > 0 && conversas > 0) {
+          const cpl = spend / conversas;
+          if (cpl > c.target_cpl_max) {
+            const msg = `CPL R$ ${cpl.toFixed(2)} acima do target R$ ${c.target_cpl_max.toFixed(2)}`;
+            anomalies.push({ ...base, type: "cpl_alto", severity: "warning", message: msg });
+            logAnomaly(id, "cpl_alto", "warning", msg);
+          }
+        }
+
+        // Statistical anomaly: CPL > mean + 2 stddev over last 14 days
+        if (conversas > 0 && anomalies.every((a) => a.type !== "cpl_alto")) {
+          const cpl = spend / conversas;
+          const stats = getRecentCplStats(id, 14);
+          if (stats && stats.stddev > 0 && cpl > stats.mean + 2 * stats.stddev) {
+            const msg = `CPL R$ ${cpl.toFixed(2)} é +2σ acima da média histórica (R$ ${stats.mean.toFixed(2)})`;
+            anomalies.push({ ...base, type: "cpl_anomalia", severity: "warning", message: msg });
+            logAnomaly(id, "cpl_anomalia", "warning", msg);
+          }
+        }
+
         return anomalies;
       } catch (err) {
         const code = err.response?.data?.error?.code;
