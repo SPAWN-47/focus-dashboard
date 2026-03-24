@@ -108,6 +108,7 @@ function ClientModal({ client, onClose, onSave }) {
     target_cpl_max: client?.target_cpl_max || "",
     target_conversas: client?.target_conversas || "",
     target_spend: client?.target_spend || "",
+    google_ads_customer_id: client?.google_ads_customer_id || "",
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -157,6 +158,7 @@ function ClientModal({ client, onClose, onSave }) {
             target_cpl_max: parseFloat(form.target_cpl_max) || 0,
             target_conversas: parseInt(form.target_conversas) || 0,
             target_spend: parseFloat(form.target_spend) || 0,
+            google_ads_customer_id: form.google_ads_customer_id || null,
           }),
         });
       } else {
@@ -269,6 +271,21 @@ function ClientModal({ client, onClose, onSave }) {
                 rows={3}
                 className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono resize-none"
               />
+            </div>
+
+            {/* Google Ads */}
+            <div className="border-t border-zinc-800 pt-4">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Google Ads</p>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Customer ID (Google Ads)</label>
+                <input
+                  value={form.google_ads_customer_id}
+                  onChange={(e) => set("google_ads_customer_id", e.target.value)}
+                  placeholder="ex: 123-456-7890"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                />
+                <p className="text-[10px] text-zinc-600 mt-1">Apenas o número da conta. Ex: 123-456-7890</p>
+              </div>
             </div>
 
             {/* Targets */}

@@ -19,6 +19,7 @@ import { fileURLToPath } from "url";
 import axios from "axios";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
+import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
 
 import {
   checkRateLimit,
@@ -730,6 +731,217 @@ app.get("/api/creatives", async (req, res) => {
   } catch (err) {
     const metaErr = err.response?.data?.error;
     res.status(500).json({ error: metaErr?.message || err.message });
+  }
+});
+
+// ─── GOOGLE ADS — INSIGHTS ────────────────────────────────────────────────────
+
+app.get("/api/google/insights", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  // If Google Ads is not configured at all, return gracefully
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  // Clients can only access their own data
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period];
+
+  if (!clientConfig || !dateRange) {
+    return res.status(400).json({ error: "Invalid client or period" });
+  }
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  // Serve from cache if available (key prefixed with google_ to avoid collision)
+  const cacheKey = `google_${clientId}`;
+  const cached = getCachedInsights(cacheKey, period);
+  if (cached) return res.json({ ...cached, fromCache: true });
+
+  try {
+    const gaql = `
+      SELECT metrics.cost_micros, metrics.impressions, metrics.clicks,
+             metrics.conversions, metrics.ctr, metrics.average_cpc,
+             metrics.average_cpm, metrics.search_impression_share
+      FROM customer
+      WHERE segments.date DURING ${dateRange}
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    if (!rows || rows.length === 0) {
+      return res.json({ configured: true, hasData: false, client: clientConfig.name, period });
+    }
+
+    const { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc } = computeGoogleMetrics(rows);
+
+    const clientData = getClient(clientId);
+    const targets = {
+      ticket_medio:      clientData?.ticket_medio      || 0,
+      target_conversas:  clientData?.target_conversas  || 0,
+      target_cpl_max:    clientData?.target_cpl_max    || 0,
+      target_spend:      clientData?.target_spend      || 0,
+    };
+
+    const payload = {
+      configured: true,
+      hasData:    true,
+      client:     clientConfig.name,
+      clientId,
+      period,
+      targets,
+      delta:      null,
+      metrics:    { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc },
+    };
+
+    setCachedInsights(cacheKey, period, payload);
+    res.json(payload);
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/insights]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — TREND ───────────────────────────────────────────────────────
+
+app.get("/api/google/trend", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT segments.date, metrics.cost_micros, metrics.impressions,
+             metrics.clicks, metrics.conversions
+      FROM customer
+      WHERE segments.date DURING LAST_30_DAYS
+      ORDER BY segments.date ASC
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    const days = (rows || []).map((row) => {
+      const m = row.metrics   || {};
+      const s = row.segments  || {};
+      return {
+        date:       s.date       ?? s.date,
+        gasto:      Number(m.costMicros  ?? m.cost_micros  ?? 0) / 1_000_000,
+        impressoes: Number(m.impressions ?? 0),
+        cliques:    Number(m.clicks      ?? 0),
+        conversas:  Number(m.conversions ?? 0),
+      };
+    });
+
+    res.json({ configured: true, hasData: days.length > 0, days });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/trend]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — CAMPAIGNS ───────────────────────────────────────────────────
+
+app.get("/api/google/campaigns", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT campaign.name, campaign.status, metrics.cost_micros,
+             metrics.impressions, metrics.clicks, metrics.conversions,
+             metrics.ctr, metrics.average_cpc
+      FROM campaign
+      WHERE segments.date DURING ${dateRange}
+        AND metrics.cost_micros > 0
+      ORDER BY metrics.cost_micros DESC
+      LIMIT 20
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    const campaigns = (rows || []).map((row) => {
+      const m  = row.metrics  || {};
+      const c  = row.campaign || {};
+      const costMicros = Number(m.costMicros  ?? m.cost_micros  ?? 0);
+      const cpcMicros  = Number(m.averageCpc  ?? m.average_cpc  ?? 0);
+      const ctrRaw     = Number(m.ctr         ?? 0);
+      const impressoes = Number(m.impressions ?? 0);
+      const cliques    = Number(m.clicks      ?? 0);
+      const conversas  = Number(m.conversions ?? 0);
+      const gasto      = costMicros / 1_000_000;
+      const cpc        = cpcMicros  / 1_000_000;
+      const ctr        = ctrRaw * 100;
+      const cpl        = conversas > 0 ? gasto / conversas : 0;
+
+      return {
+        name:      c.name           || "—",
+        status:    c.status         || "UNKNOWN",
+        gasto,
+        impressoes,
+        cliques,
+        conversas,
+        ctr,
+        cpc,
+        cpl,
+      };
+    });
+
+    res.json({ configured: true, hasData: campaigns.length > 0, campaigns });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/campaigns]", googleErr);
+    res.status(500).json({ error: googleErr });
   }
 });
 
