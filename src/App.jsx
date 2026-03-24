@@ -4,6 +4,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import GoogleDashboardPage from "./pages/GoogleDashboardPage";
+import GmbDashboardPage from "./pages/GmbDashboardPage";
 import GuidePage from "./pages/GuidePage";
 
 export default function App() {
@@ -27,6 +28,11 @@ export default function App() {
   if (path === "/dashboard/google") {
     if (!user) { window.location.href = "/login"; return null; }
     return <GoogleDashboardPage />;
+  }
+
+  if (path === "/dashboard/gmb") {
+    if (!user) { window.location.href = "/login"; return null; }
+    return <GmbDashboardPage />;
   }
 
   if (path === "/guide") {

@@ -109,6 +109,7 @@ function ClientModal({ client, onClose, onSave }) {
     target_conversas: client?.target_conversas || "",
     target_spend: client?.target_spend || "",
     google_ads_customer_id: client?.google_ads_customer_id || "",
+    gmb_location_id: client?.gmb_location_id || "",
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -159,6 +160,7 @@ function ClientModal({ client, onClose, onSave }) {
             target_conversas: parseInt(form.target_conversas) || 0,
             target_spend: parseFloat(form.target_spend) || 0,
             google_ads_customer_id: form.google_ads_customer_id || null,
+            gmb_location_id: form.gmb_location_id || null,
           }),
         });
       } else {
@@ -285,6 +287,18 @@ function ClientModal({ client, onClose, onSave }) {
                   className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
                 />
                 <p className="text-[10px] text-zinc-600 mt-1">Apenas o número da conta. Ex: 123-456-7890</p>
+              </div>
+
+              {/* GMB Location ID */}
+              <div className="mt-3">
+                <label className="block text-xs text-zinc-400 mb-1">Location ID (Google Meu Negócio)</label>
+                <input
+                  value={form.gmb_location_id}
+                  onChange={(e) => set("gmb_location_id", e.target.value)}
+                  placeholder="ex: accounts/123456789/locations/987654321"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                />
+                <p className="text-[10px] text-zinc-600 mt-1">Caminho completo. Ex: accounts/123.../locations/456...</p>
               </div>
             </div>
 

@@ -1,8 +1,9 @@
 export default function PlatformNav({ active }) {
   const tabs = [
-    { id: "meta", label: "Meta", href: "/dashboard", emoji: "📘", soon: false },
-    { id: "google", label: "Google", href: "/dashboard/google", emoji: "🔵", soon: true },
-    { id: "guide", label: "Guia", href: "/guide", emoji: "📖", soon: true },
+    { id: "meta",   label: "Meta",       href: "/dashboard",       emoji: "📘", soon: false },
+    { id: "google", label: "Google Ads", href: "/dashboard/google", emoji: "🔵", soon: true },
+    { id: "gmb",    label: "Meu Negócio",href: "/dashboard/gmb",   emoji: "📍", soon: false },
+    { id: "guide",  label: "Guia",       href: "/guide",            emoji: "📖", soon: true },
   ];
 
   return (

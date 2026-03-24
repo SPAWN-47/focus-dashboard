@@ -20,6 +20,7 @@ import axios from "axios";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
+import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange } from "./lib/gmb.js";
 
 import {
   checkRateLimit,
@@ -81,7 +82,7 @@ app.use(
         styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://graph.facebook.com", "https://googleads.googleapis.com", "https://oauth2.googleapis.com"],
+        connectSrc: ["'self'", "https://graph.facebook.com", "https://googleads.googleapis.com", "https://oauth2.googleapis.com", "https://mybusiness.googleapis.com", "https://mybusinessaccountmanagement.googleapis.com", "https://mybusinessbusinessinformation.googleapis.com", "https://businessprofileperformance.googleapis.com"],
       },
     },
   })
@@ -193,6 +194,7 @@ app.post("/api/config/clients", async (req, res) => {
   const {
     id, name, emoji, color, token: apiToken, accountId,
     ticket_medio, target_cpl_max, target_conversas, target_spend,
+    google_ads_customer_id, gmb_location_id,
   } = req.body || {};
   if (!id || !name || !apiToken || !accountId) {
     return res
@@ -215,6 +217,8 @@ app.post("/api/config/clients", async (req, res) => {
     target_cpl_max: parseFloat(target_cpl_max) || 0,
     target_conversas: parseInt(target_conversas) || 0,
     target_spend: parseFloat(target_spend) || 0,
+    google_ads_customer_id: google_ads_customer_id || null,
+    gmb_location_id: gmb_location_id || null,
   };
   saveClients(clients);
 
@@ -944,6 +948,129 @@ app.get("/api/google/campaigns", async (req, res) => {
     const googleErr = err.response?.data?.error?.message || err.message;
     console.error("[google/campaigns]", googleErr);
     res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE BUSINESS PROFILE — INSIGHTS ────────────────────────────────────────
+
+app.get("/api/gmb/insights", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GMB_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const clientId = user.role === "admin" ? (req.query.clientId || user.clientId) : user.clientId;
+  const period   = req.query.period || "monthly";
+
+  const clients     = loadClients();
+  const clientConfig = clients[clientId];
+
+  if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
+
+  if (!clientConfig.gmb_location_id) {
+    return res.json({ configured: false, message: "GMB location ID não configurado" });
+  }
+
+  try {
+    const { startDate, endDate } = getGmbDateRange(period);
+
+    // Extract numeric location ID from full path "accounts/xxx/locations/yyy"
+    const locIdMatch = clientConfig.gmb_location_id.match(/locations\/(\d+)$/);
+    if (!locIdMatch) {
+      return res.status(400).json({ error: "gmb_location_id inválido. Use o formato: accounts/{id}/locations/{id}" });
+    }
+    const locationId = locIdMatch[1];
+
+    const series  = await getGmbInsights(locationId, startDate, endDate);
+    const metrics = computeGmbMetrics(series);
+
+    res.json({ configured: true, period, metrics, startDate, endDate });
+  } catch (err) {
+    const errMsg = err.response?.data?.error?.message || err.message;
+    console.error("[gmb/insights]", errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+// ─── GOOGLE BUSINESS PROFILE — REVIEWS ────────────────────────────────────────
+
+app.get("/api/gmb/reviews", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GMB_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const clientId = user.role === "admin" ? (req.query.clientId || user.clientId) : user.clientId;
+
+  const clients      = loadClients();
+  const clientConfig = clients[clientId];
+
+  if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
+
+  if (!clientConfig.gmb_location_id) {
+    return res.json({ configured: false, message: "GMB location ID não configurado" });
+  }
+
+  try {
+    const { reviews, averageRating, totalReviewCount } = await getGmbReviews(
+      clientConfig.gmb_location_id,
+      10
+    );
+
+    res.json({
+      configured: true,
+      averageRating,
+      totalReviewCount,
+      reviews: reviews.map(r => ({
+        name:       r.name,
+        rating:     r.starRating,
+        comment:    r.comment || "",
+        author:     r.reviewer?.displayName || "Anônimo",
+        date:       r.createTime,
+        replyText:  r.reviewReply?.comment || null,
+      })),
+    });
+  } catch (err) {
+    const errMsg = err.response?.data?.error?.message || err.message;
+    console.error("[gmb/reviews]", errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+// ─── GOOGLE BUSINESS PROFILE — LIST LOCATIONS (admin) ────────────────────────
+
+app.get("/api/gmb/locations", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  if (!process.env.GMB_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  try {
+    const accounts  = await getGmbAccounts();
+    const result    = [];
+
+    for (const account of accounts) {
+      const locations = await getGmbLocations(account.name);
+      for (const loc of locations) {
+        result.push({
+          locationName:  loc.name,   // "accounts/.../locations/..."
+          title:         loc.title || loc.locationName,
+          accountName:   account.accountName || account.name,
+          websiteUri:    loc.websiteUri || "",
+        });
+      }
+    }
+
+    res.json({ configured: true, locations: result });
+  } catch (err) {
+    const errMsg = err.response?.data?.error?.message || err.message;
+    console.error("[gmb/locations]", errMsg);
+    res.status(500).json({ error: errMsg });
   }
 });
 
