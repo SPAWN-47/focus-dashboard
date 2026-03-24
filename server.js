@@ -45,7 +45,19 @@ import {
   getClient,
   getPreviousPeriodMetrics,
   getRecentCplStats,
+  getSchedules,
+  saveSchedule,
+  updateScheduleActive,
+  deleteSchedule,
+  markScheduleSent,
+  getSchedulesDueToday,
+  updateClientNotes,
+  getAlertRules,
+  saveAlertRule,
+  updateAlertRuleActive,
+  deleteAlertRule,
 } from "./lib/db.js";
+import { Resend } from "resend";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -244,6 +256,13 @@ app.delete("/api/config/clients/:id", (req, res) => {
   res.json({ success: true });
 });
 
+app.patch("/api/config/clients/:id/notes", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { notes } = req.body || {};
+  updateClientNotes(req.params.id, notes || "");
+  res.json({ ok: true });
+});
+
 app.post("/api/config/test-connection", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const { token: apiToken, accountId } = req.body || {};
@@ -408,6 +427,83 @@ app.get("/api/trend", async (req, res) => {
   }
 });
 
+// ─── ALERT RULES endpoints ───────────────────────────────────────────────────
+
+app.get("/api/alert-rules", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { client } = req.query;
+  res.json(getAlertRules(client || null));
+});
+
+app.post("/api/alert-rules", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { clientId, metric, operator, threshold, severity } = req.body || {};
+  if (!clientId || !metric || !operator || threshold === undefined) {
+    return res.status(400).json({ error: "clientId, metric, operator e threshold são obrigatórios" });
+  }
+  const id = saveAlertRule({ clientId, metric, operator, threshold, severity: severity || "warning" });
+  res.json({ id });
+});
+
+app.patch("/api/alert-rules/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { active } = req.body;
+  updateAlertRuleActive(Number(req.params.id), active);
+  res.json({ ok: true });
+});
+
+app.delete("/api/alert-rules/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  deleteAlertRule(Number(req.params.id));
+  res.json({ ok: true });
+});
+
+// Evaluate custom alert rules against live metrics
+function evaluateCustomRules(clientId, metrics, delta, base) {
+  const rules = getAlertRules(clientId).filter((r) => r.active);
+  const results = [];
+
+  const METRIC_LABELS = {
+    cpl: "CPL", conversas: "Conversas", gasto: "Investimento",
+    ctr: "CTR", cpm: "CPM", conversas_delta: "Queda de conversas",
+  };
+
+  for (const rule of rules) {
+    let value;
+    if (rule.metric === "conversas_delta") {
+      value = delta?.conversas ?? null;
+    } else {
+      value = metrics[rule.metric] ?? null;
+    }
+    if (value === null) continue;
+
+    const passes = rule.operator === "gt" ? value > rule.threshold : value < rule.threshold;
+    if (!passes) continue;
+
+    const label = METRIC_LABELS[rule.metric] || rule.metric;
+    const sign = rule.operator === "gt" ? ">" : "<";
+    const fmt = ["cpl", "gasto", "cpm"].includes(rule.metric)
+      ? `R$ ${value.toFixed(2)}`
+      : rule.metric === "ctr" || rule.metric === "conversas_delta"
+      ? `${value.toFixed(1)}%`
+      : value;
+    const fmtT = ["cpl", "gasto", "cpm"].includes(rule.metric)
+      ? `R$ ${rule.threshold.toFixed(2)}`
+      : rule.metric === "ctr" || rule.metric === "conversas_delta"
+      ? `${rule.threshold}%`
+      : rule.threshold;
+
+    results.push({
+      ...base,
+      type: `custom_${rule.metric}`,
+      severity: rule.severity,
+      message: `${label} ${fmt} ${sign} ${fmtT} (regra personalizada)`,
+      ruleId: rule.id,
+    });
+  }
+  return results;
+}
+
 // ─── ANOMALIES (admin only) ───────────────────────────────────────────────────
 
 app.get("/api/anomalies", async (req, res) => {
@@ -437,6 +533,12 @@ app.get("/api/anomalies", async (req, res) => {
         const impressions = parseInt(raw.impressions || 0);
         const { value: conversas } = extractConversions(raw.actions || []);
         const anomalies = [];
+        const liveMetrics = computeMetrics(raw);
+        const prev = getPreviousPeriodMetrics(id, "daily");
+        const liveDelta = prev ? {
+          conversas: prev.conversas > 0 ? ((liveMetrics.conversas - prev.conversas) / prev.conversas) * 100 : null,
+          cpl: prev.cpl > 0 ? ((liveMetrics.cpl - prev.cpl) / prev.cpl) * 100 : null,
+        } : {};
 
         // Use target_spend to derive a spend threshold; fallback to R$15
         const spendThreshold = c.target_spend > 0 ? c.target_spend * 0.005 : 15;
@@ -472,6 +574,9 @@ app.get("/api/anomalies", async (req, res) => {
             logAnomaly(id, "cpl_anomalia", "warning", msg);
           }
         }
+
+        // Custom rules evaluation
+        anomalies.push(...evaluateCustomRules(id, liveMetrics, liveDelta, base));
 
         return anomalies;
       } catch (err) {
@@ -658,6 +763,237 @@ app.get("/*path", (req, res) => {
   res.sendFile(join(__dirname, "dist", "index.html"));
 });
 
+// ─── REPORT SCHEDULES ─────────────────────────────────────────────────────────
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const REPORT_FROM = process.env.REPORT_FROM_EMAIL || "relatorios@focusdashboard.com.br";
+
+function buildReportEmailHtml(clientName, clientEmoji, clientColor, period, metrics, targets, delta) {
+  const PERIOD_LABELS = { daily: "Ontem", weekly: "Última semana", monthly: "Este mês" };
+  const periodLabel = PERIOD_LABELS[period] || period;
+  const now = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  const m = metrics || {};
+  const t = targets || {};
+  const d = delta || {};
+
+  const fBRL0 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const fBRL2 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const deltaStr = (val, li = false) => {
+    if (val == null) return "";
+    const good = li ? val < 0 : val >= 0;
+    const color = good ? "#16a34a" : "#dc2626";
+    return ` <span style="font-size:11px;font-weight:700;color:${color};">${val >= 0 ? "+" : ""}${val.toFixed(1)}%</span>`;
+  };
+
+  const kpis = [
+    { label: "Investimento", value: fBRL0(m.gasto), delta: deltaStr(d.gasto) },
+    { label: "Conversas", value: m.conversas ?? 0, delta: deltaStr(d.conversas) },
+    { label: "CPL", value: m.cpl > 0 ? fBRL2(m.cpl) : "—", delta: deltaStr(d.cpl, true) },
+    { label: "CTR", value: `${(m.ctr || 0).toFixed(2)}%`, delta: "" },
+    { label: "CPM", value: fBRL2(m.cpm), delta: deltaStr(d.cpm, true) },
+    { label: "Impressões", value: (m.impressoes || 0).toLocaleString("pt-BR"), delta: "" },
+  ];
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;">
+
+  <!-- Header -->
+  <tr><td style="background:#09090b;padding:28px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td>
+        <div style="display:inline-flex;align-items:center;gap:12px;">
+          <span style="font-size:28px;line-height:1;">${clientEmoji}</span>
+          <div>
+            <div style="color:#ffffff;font-size:18px;font-weight:700;">${clientName}</div>
+            <div style="color:#a1a1aa;font-size:12px;margin-top:2px;">Relatório de Performance · ${periodLabel}</div>
+          </div>
+        </div>
+      </td>
+      <td align="right">
+        <div style="width:8px;height:8px;border-radius:50%;background:${clientColor};display:inline-block;margin-right:6px;"></div>
+        <span style="color:#71717a;font-size:11px;">${now}</span>
+      </td>
+    </tr>
+    </table>
+  </td></tr>
+
+  <!-- KPIs -->
+  <tr><td style="padding:28px 32px 8px;">
+    <p style="color:#71717a;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 16px;">Métricas do período</p>
+    <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+    ${kpis.slice(0, 3).map((k) => `
+      <td width="33%" style="padding:0 6px 12px 0;">
+        <div style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${k.label}</div>
+          <div style="font-size:20px;font-weight:800;color:#09090b;">${k.value}${k.delta}</div>
+        </div>
+      </td>`).join("")}
+    </tr>
+    <tr>
+    ${kpis.slice(3).map((k) => `
+      <td width="33%" style="padding:0 6px 12px 0;">
+        <div style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">${k.label}</div>
+          <div style="font-size:20px;font-weight:800;color:#09090b;">${k.value}${k.delta}</div>
+        </div>
+      </td>`).join("")}
+    </tr>
+    </table>
+  </td></tr>
+
+  ${t.target_spend > 0 ? `
+  <!-- Budget progress -->
+  <tr><td style="padding:0 32px 24px;">
+    <p style="color:#71717a;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px;">Acompanhamento de metas</p>
+    ${[
+      t.target_spend > 0 ? { label: "Budget mensal", value: m.gasto, target: t.target_spend, fmt: fBRL0, color: "#7c3aed" } : null,
+      t.target_conversas > 0 ? { label: "Meta de conversas", value: m.conversas, target: t.target_conversas, fmt: (v) => v, color: "#059669" } : null,
+    ].filter(Boolean).map((bar) => {
+      const pct = Math.min(100, Math.round((bar.value / bar.target) * 100));
+      const over = pct > 100;
+      const barColor = over ? "#dc2626" : bar.color;
+      return `
+      <div style="margin-bottom:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:6px;">
+          <tr>
+            <td style="font-size:12px;font-weight:600;color:#374151;">${bar.label}</td>
+            <td align="right" style="font-size:12px;font-weight:700;color:${over ? "#dc2626" : "#111827"};">${bar.fmt(bar.value)} / ${bar.fmt(bar.target)} (${pct}%)</td>
+          </tr>
+        </table>
+        <div style="height:6px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:999px;"></div>
+        </div>
+      </div>`;
+    }).join("")}
+  </td></tr>` : ""}
+
+  <!-- Footer -->
+  <tr><td style="background:#f9fafb;border-top:1px solid #e4e4e7;padding:20px 32px;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="font-size:12px;color:#a1a1aa;">Focus Dashboard · Relatório automático</td>
+      <td align="right" style="font-size:11px;color:#d4d4d8;">Para cancelar, acesse o painel Admin.</td>
+    </tr>
+    </table>
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+async function sendScheduledReport(schedule) {
+  const clients = loadClients();
+  const clientConfig = clients[schedule.client_id];
+  if (!clientConfig) return;
+
+  // Fetch current insights
+  try {
+    const response = await axios.get(
+      `${META_BASE}/${clientConfig.accountId}/insights`,
+      {
+        params: {
+          fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
+          date_preset: DATE_PRESETS[schedule.period] || "yesterday",
+          level: "account",
+          access_token: clientConfig.token,
+        },
+        timeout: 15000,
+      }
+    );
+    const raw = response.data.data?.[0];
+    if (!raw) return;
+
+    const { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm } = computeMetrics(raw);
+    const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm };
+    const clientData = getClient(schedule.client_id);
+    const targets = {
+      target_spend: clientData?.target_spend || 0,
+      target_conversas: clientData?.target_conversas || 0,
+    };
+    const prev = getPreviousPeriodMetrics(schedule.client_id, schedule.period);
+    const delta = prev ? {
+      gasto: prev.gasto > 0 ? ((gasto - prev.gasto) / prev.gasto) * 100 : null,
+      conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
+      cpl: prev.cpl > 0 ? ((cpl - prev.cpl) / prev.cpl) * 100 : null,
+      cpm: prev.cpm > 0 ? ((cpm - prev.cpm) / prev.cpm) * 100 : null,
+    } : {};
+
+    const PERIOD_LABELS = { daily: "Ontem", weekly: "Última semana", monthly: "Este mês" };
+    const html = buildReportEmailHtml(
+      clientConfig.name, clientConfig.emoji || "🏢", clientConfig.color || "#7c3aed",
+      schedule.period, metrics, targets, delta
+    );
+
+    await resend.emails.send({
+      from: REPORT_FROM,
+      to: schedule.email,
+      subject: `📊 ${clientConfig.name} · ${PERIOD_LABELS[schedule.period] || schedule.period}`,
+      html,
+    });
+
+    markScheduleSent(schedule.id);
+    console.log(`[reports] Sent to ${schedule.email} for client ${schedule.client_id}`);
+  } catch (err) {
+    console.error(`[reports] Failed for schedule ${schedule.id}:`, err.message);
+  }
+}
+
+// GET /api/report-schedules
+app.get("/api/report-schedules", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json(getSchedules());
+});
+
+// POST /api/report-schedules
+app.post("/api/report-schedules", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { clientId, email, period, dayOfWeek } = req.body;
+  if (!clientId || !email || !period || dayOfWeek === undefined) {
+    return res.status(400).json({ error: "clientId, email, period e dayOfWeek são obrigatórios" });
+  }
+  const id = saveSchedule({ clientId, email, period, dayOfWeek: Number(dayOfWeek) });
+  res.json({ id });
+});
+
+// PATCH /api/report-schedules/:id
+app.patch("/api/report-schedules/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { active } = req.body;
+  updateScheduleActive(Number(req.params.id), active);
+  res.json({ ok: true });
+});
+
+// DELETE /api/report-schedules/:id
+app.delete("/api/report-schedules/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  deleteSchedule(Number(req.params.id));
+  res.json({ ok: true });
+});
+
+// POST /api/report-schedules/:id/send-now (test send)
+app.post("/api/report-schedules/:id/send-now", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const schedules = getSchedules();
+  const schedule = schedules.find((s) => s.id === Number(req.params.id));
+  if (!schedule) return res.status(404).json({ error: "Agendamento não encontrado" });
+  if (!process.env.RESEND_API_KEY) {
+    return res.status(400).json({ error: "RESEND_API_KEY não configurada" });
+  }
+  try {
+    await sendScheduledReport(schedule);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── DAILY DATA COLLECTION (cron) ─────────────────────────────────────────────
 
 async function collectDailyData() {
@@ -701,6 +1037,17 @@ async function collectDailyData() {
 cron.schedule("0 6 * * *", () => {
   console.log("[cron] Starting daily data collection...");
   collectDailyData();
+});
+
+// Run report dispatch daily at 08:00 (after data collection)
+cron.schedule("0 8 * * *", async () => {
+  if (!process.env.RESEND_API_KEY) return;
+  const due = getSchedulesDueToday();
+  if (due.length === 0) return;
+  console.log(`[reports] Dispatching ${due.length} scheduled report(s)...`);
+  for (const schedule of due) {
+    await sendScheduledReport(schedule);
+  }
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────

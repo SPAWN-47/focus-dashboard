@@ -520,6 +520,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [trendData, setTrendData] = useState(null);
   const [campaignData, setCampaignData] = useState(null);
+  const [creativesData, setCreativesData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trendLoading, setTrendLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -592,11 +593,22 @@ export default function DashboardPage() {
     }
   }, [activeClient, activePeriod]);
 
+  const fetchCreatives = useCallback(async () => {
+    try {
+      const res = await authFetch(`/api/creatives?client=${activeClient}&period=${activePeriod}`);
+      const json = await res.json();
+      setCreativesData(res.ok ? json : null);
+    } catch {
+      setCreativesData(null);
+    }
+  }, [activeClient, activePeriod]);
+
   useEffect(() => {
     fetchInsights();
     fetchTrend();
     fetchCampaigns();
-  }, [fetchInsights, fetchTrend, fetchCampaigns]);
+    fetchCreatives();
+  }, [fetchInsights, fetchTrend, fetchCampaigns, fetchCreatives]);
 
   const metrics = data?.metrics || null;
   const delta = data?.delta || null;
@@ -1197,6 +1209,80 @@ export default function DashboardPage() {
                           })()}
                         </tfoot>
                       </table>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── ANÚNCIOS ATIVOS ── */}
+                {creativesData?.ads?.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.5 }}
+                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+                  >
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <h2 className="text-sm font-bold text-zinc-100">Anúncios</h2>
+                        <p className="text-xs text-zinc-500 mt-0.5">Top {creativesData.ads.length} por conversas · {PERIODS.find((p) => p.id === activePeriod)?.sub}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {creativesData.ads.slice(0, 10).map((ad, i) => {
+                        const medals = ["🥇","🥈","🥉"];
+                        const medal = i < 3 ? medals[i] : null;
+                        return (
+                          <div key={ad.adId || i} className="group bg-zinc-800/50 border border-zinc-700/40 rounded-xl overflow-hidden hover:border-zinc-600 transition-all">
+                            {/* Thumbnail */}
+                            <div className="aspect-video bg-zinc-800 relative overflow-hidden">
+                              {ad.thumbnail ? (
+                                <img src={ad.thumbnail} alt={ad.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { e.target.style.display = "none"; }} />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <svg className="w-6 h-6 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                              {/* Rank badge */}
+                              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm ${
+                                i === 0 ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                                : i === 1 ? "bg-zinc-400/20 text-zinc-300 border border-zinc-400/30"
+                                : i === 2 ? "bg-orange-600/20 text-orange-300 border border-orange-600/30"
+                                : "bg-zinc-900/70 text-zinc-400 border border-zinc-700/50"
+                              }`}>
+                                {medal || `${i+1}°`}
+                              </div>
+                              {/* Conversas badge */}
+                              {ad.conversas > 0 && (
+                                <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+                                  <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                                  <span className="text-[10px] font-bold text-emerald-300">{ad.conversas}</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Info */}
+                            <div className="p-2.5">
+                              <p className="text-[11px] font-semibold text-zinc-200 truncate mb-2" title={ad.creativeTitle || ad.name}>
+                                {ad.creativeTitle || ad.name}
+                              </p>
+                              <div className="grid grid-cols-2 gap-1">
+                                <div className="text-center bg-zinc-800 rounded-lg py-1.5">
+                                  <p className="text-xs font-bold text-white tabular-nums">R$ {(ad.gasto||0).toLocaleString("pt-BR",{maximumFractionDigits:0})}</p>
+                                  <p className="text-[9px] text-zinc-500 mt-0.5 font-medium uppercase">Gasto</p>
+                                </div>
+                                <div className="text-center bg-zinc-800 rounded-lg py-1.5">
+                                  <p className="text-xs font-bold text-white tabular-nums">{ad.conversas > 0 ? `R$ ${(ad.cpl||0).toFixed(0)}` : "—"}</p>
+                                  <p className="text-[9px] text-zinc-500 mt-0.5 font-medium uppercase">CPL</p>
+                                </div>
+                              </div>
+                              <div className="flex justify-between mt-2 text-[10px] text-zinc-600">
+                                <span>CTR {(ad.ctr||0).toFixed(1)}%</span>
+                                <span>{(ad.impressoes||0).toLocaleString("pt-BR")} imp.</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 )}
