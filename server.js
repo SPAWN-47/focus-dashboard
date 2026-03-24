@@ -765,8 +765,11 @@ app.get("/*path", (req, res) => {
 
 // ─── REPORT SCHEDULES ─────────────────────────────────────────────────────────
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const REPORT_FROM = process.env.REPORT_FROM_EMAIL || "relatorios@focusdashboard.com.br";
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 function buildReportEmailHtml(clientName, clientEmoji, clientColor, period, metrics, targets, delta) {
   const PERIOD_LABELS = { daily: "Ontem", weekly: "Última semana", monthly: "Este mês" };
@@ -931,6 +934,11 @@ async function sendScheduledReport(schedule) {
       schedule.period, metrics, targets, delta
     );
 
+    const resend = getResend();
+    if (!resend) {
+      console.warn("[reports] RESEND_API_KEY not set — skipping email send.");
+      return;
+    }
     await resend.emails.send({
       from: REPORT_FROM,
       to: schedule.email,
