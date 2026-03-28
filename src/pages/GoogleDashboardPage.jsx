@@ -252,7 +252,10 @@ export default function GoogleDashboardPage() {
   const clientId  = user.role === "client" ? user.clientId : (params.get("client") || user.clientId);
 
   const fetchData = useCallback(async () => {
-    if (!clientId) return;
+    if (!clientId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -402,8 +405,27 @@ export default function GoogleDashboardPage() {
           </div>
         )}
 
+        {/* ── NO CLIENT SELECTED (admin without ?client= param) ── */}
+        {!loading && !error && !clientId && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-6"
+          >
+            <div className="p-3 rounded-xl bg-blue-500/10">
+              <Settings className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Nenhum cliente selecionado</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Selecione um cliente no painel principal para visualizar os dados do Google Ads.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── NOT CONFIGURED ── */}
-        {!loading && !error && notConfigured && (
+        {!loading && !error && clientId && notConfigured && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -422,7 +444,7 @@ export default function GoogleDashboardPage() {
         )}
 
         {/* ── MAIN DATA VIEW ── */}
-        {!loading && !error && !notConfigured && (
+        {!loading && !error && clientId && !notConfigured && (
           <>
             {/* Period selector row */}
             <motion.div
