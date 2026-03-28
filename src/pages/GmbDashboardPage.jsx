@@ -204,9 +204,10 @@ export default function GmbDashboardPage() {
   useEffect(() => { fetchReviews();  }, [fetchReviews]);
 
   const m               = insights?.metrics || {};
-  // Differentiate: configured=false (not set up) vs api_error (credentials wrong/API down)
-  const isNotConfigured = insights?.configured === false && insights?.reason !== "api_error";
+  // Differentiate between states
+  const isNotConfigured = insights?.configured === false && !["api_error","quota_exceeded"].includes(insights?.reason);
   const isApiError      = insights?.configured === false && insights?.reason === "api_error";
+  const isQuotaError    = insights?.configured === false && insights?.reason === "quota_exceeded";
   const hasInsights     = insights?.configured && insights?.metrics;
 
   return (
@@ -283,6 +284,25 @@ export default function GmbDashboardPage() {
           <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
             <span className="font-semibold">Erro:</span> {error}
           </div>
+        )}
+
+        {/* ── QUOTA EXCEEDED ── */}
+        {!loadingInsights && isQuotaError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-5 py-5"
+          >
+            <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0 mt-0.5">
+              <TrendingUp className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-yellow-300">Limite de requisições atingido</p>
+              <p className="text-xs text-yellow-400/80 mt-0.5">
+                A API do Google tem uma cota por minuto. Os dados serão carregados automaticamente do cache em breve — aguarde alguns minutos e recarregue a página.
+              </p>
+            </div>
+          </motion.div>
         )}
 
         {/* ── API ERROR (credentials wrong / API down) ── */}
@@ -373,7 +393,7 @@ export default function GmbDashboardPage() {
             )}
 
             {/* ── KPI CARDS ── */}
-            {(loadingInsights || hasInsights) && !isApiError && (
+            {(loadingInsights || hasInsights) && !isApiError && !isQuotaError && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                   { label: "Impressões", key: "impressoes", icon: Eye,        color: GMB_GREEN },
@@ -457,7 +477,7 @@ export default function GmbDashboardPage() {
             )}
 
             {/* ── ABOUT SECTION ── */}
-            {!isNotConfigured && !isApiError && !loadingInsights && (
+            {!isNotConfigured && !isApiError && !isQuotaError && !loadingInsights && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

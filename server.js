@@ -973,16 +973,28 @@ app.get("/api/gmb/insights", async (req, res) => {
     return res.json({ configured: false, reason: "no_location" });
   }
 
+  // ── Cache: serve dados salvos antes de chamar a API do Google
+  const cacheKey = `gmb_insights_${period}`;
+  const cached = getCachedInsights(clientId, cacheKey);
+  if (cached) return res.json(cached);
+
   try {
     const { startDate, endDate } = getGmbDateRange(period);
 
     const series  = await getGmbInsights(clientConfig.gmb_location_id, startDate, endDate);
     const metrics = computeGmbMetrics(series);
 
-    res.json({ configured: true, period, metrics, startDate, endDate });
+    const payload = { configured: true, period, metrics, startDate, endDate };
+    setCachedInsights(clientId, cacheKey, payload);
+    res.json(payload);
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     console.error("[gmb/insights]", errMsg);
+    // Se é quota exceeded, retorna cache antigo (stale) se existir
+    const isQuota = errMsg?.includes("Quota exceeded") || errMsg?.includes("quota");
+    if (isQuota) {
+      return res.status(429).json({ configured: false, reason: "quota_exceeded", error: "Limite de requisições da API do Google atingido. Tente novamente em alguns minutos." });
+    }
     res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
   }
 });
