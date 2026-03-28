@@ -1,0 +1,58 @@
+{
+  "sos-fogoes": {
+    "name": "SOS Panelas e Fogões",
+    "emoji": "🍳",
+    "color": "#ef4444",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "890-563-4560"
+  },
+  "top-car": {
+    "name": "Top Car Lubrificantes",
+    "emoji": "🚗",
+    "color": "#f59e0b",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "336-716-6992"
+  },
+  "atena-chat": {
+    "name": "Atena CHAT",
+    "emoji": "💬",
+    "color": "#6366f1",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "713-435-5452"
+  },
+  "agencia-anihu": {
+    "name": "Agência ANIHU",
+    "emoji": "📣",
+    "color": "#ec4899",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "978-560-4948"
+  },
+  "vila-odonto": {
+    "name": "Vila Odonto",
+    "emoji": "🦷",
+    "color": "#14b8a6",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "945-272-2968"
+  },
+  "autotech": {
+    "name": "AUTOTECH PREMIUM",
+    "emoji": "🔧",
+    "color": "#f97316",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "791-197-6352"
+  },
+  "innov-home": {
+    "name": "Loja Innov Home",
+    "emoji": "🏠",
+    "color": "#8b5cf6",
+    "token": "placeholder",
+    "accountId": "0",
+    "google_ads_customer_id": "487-947-8752"
+  }
+}

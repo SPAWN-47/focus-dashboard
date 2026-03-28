@@ -11,6 +11,7 @@ dist/
 # Dados sensíveis — NUNCA commitar (senhas e tokens de API)
 config/users.json
 config/clients.json
+# config/clients.seed.json é seguro para commitar (sem tokens reais)
 
 # macOS
 .DS_Store
@@ -24,6 +25,7 @@ config/clients.json
 !package.json
 !package-lock.json
 !config/*.example.json
+!config/clients.seed.json
 
 # Logs
 *.log

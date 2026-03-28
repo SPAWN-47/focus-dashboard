@@ -38,6 +38,7 @@ import {
 import * as dbModule from "./lib/db.js";
 import {
   migrateFromJson,
+  seedClients,
   getCachedInsights,
   setCachedInsights,
   saveInsightHistory,
@@ -1401,9 +1402,10 @@ cron.schedule("0 8 * * *", async () => {
 
 // ─── START ────────────────────────────────────────────────────────────────────
 
-// Initialize DB and migrate from JSON files if needed
+// Initialize DB, migrate from JSON files, and seed base clients
 initDb(dbModule);
 migrateFromJson();
+seedClients();
 
 app.listen(PORT, () => {
   console.log(`\n✅  Focus Dashboard rodando na porta ${PORT}`);
