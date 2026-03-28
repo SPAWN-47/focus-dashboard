@@ -286,20 +286,20 @@ export default function GmbDashboardPage() {
           </div>
         )}
 
-        {/* ── QUOTA EXCEEDED ── */}
-        {!loadingInsights && isQuotaError && (
+        {/* ── QUOTA / PENDING APPROVAL ── */}
+        {!loadingInsights && isQuotaError && user?.role === "admin" && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-5 py-5"
+            className="flex items-start gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-5"
           >
-            <div className="p-2.5 rounded-xl bg-yellow-500/10 shrink-0 mt-0.5">
-              <TrendingUp className="w-5 h-5 text-yellow-400" />
+            <div className="p-2.5 rounded-xl bg-zinc-800 shrink-0 mt-0.5">
+              <Settings className="w-5 h-5 text-zinc-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-yellow-300">Limite de requisições atingido</p>
-              <p className="text-xs text-yellow-400/80 mt-0.5">
-                A API do Google tem uma cota por minuto. Os dados serão carregados automaticamente do cache em breve — aguarde alguns minutos e recarregue a página.
+              <p className="text-sm font-semibold text-zinc-300">Aguardando aprovação do Google</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                O acesso à API do Google Meu Negócio foi solicitado e está em análise (7–10 dias úteis). Os dados aparecerão automaticamente após a aprovação.
               </p>
             </div>
           </motion.div>
