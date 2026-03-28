@@ -295,10 +295,10 @@ function ClientModal({ client, onClose, onSave }) {
                 <input
                   value={form.gmb_location_id}
                   onChange={(e) => set("gmb_location_id", e.target.value)}
-                  placeholder="ex: accounts/123456789/locations/987654321"
+                  placeholder="ex: 17414490206052773930"
                   className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
                 />
-                <p className="text-[10px] text-zinc-600 mt-1">Caminho completo. Ex: accounts/123.../locations/456...</p>
+                <p className="text-[10px] text-zinc-600 mt-1">ID numérico da localização. Encontre em business.google.com/locations</p>
               </div>
             </div>
 

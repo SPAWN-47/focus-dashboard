@@ -5,7 +5,8 @@
     "color": "#ef4444",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "890-563-4560"
+    "google_ads_customer_id": "890-563-4560",
+    "gmb_location_id": "14170607753787191209"
   },
   "top-car": {
     "name": "Top Car Lubrificantes",
@@ -13,7 +14,8 @@
     "color": "#f59e0b",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "336-716-6992"
+    "google_ads_customer_id": "336-716-6992",
+    "gmb_location_id": ""
   },
   "atena-chat": {
     "name": "Atena CHAT",
@@ -21,7 +23,8 @@
     "color": "#6366f1",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "713-435-5452"
+    "google_ads_customer_id": "713-435-5452",
+    "gmb_location_id": "15010448831493755935"
   },
   "agencia-anihu": {
     "name": "Agência ANIHU",
@@ -29,7 +32,8 @@
     "color": "#ec4899",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "978-560-4948"
+    "google_ads_customer_id": "978-560-4948",
+    "gmb_location_id": "18207559712879357611"
   },
   "vila-odonto": {
     "name": "Vila Odonto",
@@ -37,7 +41,8 @@
     "color": "#14b8a6",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "945-272-2968"
+    "google_ads_customer_id": "945-272-2968",
+    "gmb_location_id": "17414490206052773930"
   },
   "autotech": {
     "name": "AUTOTECH PREMIUM",
@@ -45,7 +50,8 @@
     "color": "#f97316",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "791-197-6352"
+    "google_ads_customer_id": "791-197-6352",
+    "gmb_location_id": "00164617330526006943"
   },
   "innov-home": {
     "name": "Loja Innov Home",
@@ -53,6 +59,7 @@
     "color": "#8b5cf6",
     "token": "placeholder",
     "accountId": "0",
-    "google_ads_customer_id": "487-947-8752"
+    "google_ads_customer_id": "487-947-8752",
+    "gmb_location_id": ""
   }
 }
