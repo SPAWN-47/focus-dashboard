@@ -958,7 +958,7 @@ app.get("/api/gmb/insights", async (req, res) => {
   if (!user) return;
 
   if (!process.env.GMB_CLIENT_ID) {
-    return res.json({ configured: false });
+    return res.json({ configured: false, reason: "no_credentials" });
   }
 
   const clientId = user.role === "admin" ? (req.query.clientId || user.clientId) : user.clientId;
@@ -970,7 +970,7 @@ app.get("/api/gmb/insights", async (req, res) => {
   if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
 
   if (!clientConfig.gmb_location_id) {
-    return res.json({ configured: false, message: "GMB location ID não configurado" });
+    return res.json({ configured: false, reason: "no_location" });
   }
 
   try {
@@ -983,7 +983,7 @@ app.get("/api/gmb/insights", async (req, res) => {
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     console.error("[gmb/insights]", errMsg);
-    res.status(500).json({ error: errMsg });
+    res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
   }
 });
 
@@ -994,7 +994,7 @@ app.get("/api/gmb/reviews", async (req, res) => {
   if (!user) return;
 
   if (!process.env.GMB_CLIENT_ID) {
-    return res.json({ configured: false });
+    return res.json({ configured: false, reason: "no_credentials" });
   }
 
   const clientId = user.role === "admin" ? (req.query.clientId || user.clientId) : user.clientId;
@@ -1005,7 +1005,7 @@ app.get("/api/gmb/reviews", async (req, res) => {
   if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
 
   if (!clientConfig.gmb_location_id) {
-    return res.json({ configured: false, message: "GMB location ID não configurado" });
+    return res.json({ configured: false, reason: "no_location" });
   }
 
   try {
@@ -1030,7 +1030,7 @@ app.get("/api/gmb/reviews", async (req, res) => {
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     console.error("[gmb/reviews]", errMsg);
-    res.status(500).json({ error: errMsg });
+    res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
   }
 });
 
@@ -1406,5 +1406,14 @@ app.listen(PORT, () => {
       "⚠️   JWT_SECRET não definido — usando secret padrão de desenvolvimento.\n" +
         "     Em produção: export JWT_SECRET=$(openssl rand -hex 32)\n"
     );
+  }
+  if (!process.env.GMB_CLIENT_ID || !process.env.GMB_CLIENT_SECRET || !process.env.GMB_REFRESH_TOKEN) {
+    console.warn(
+      "⚠️   Credenciais do Google Meu Negócio ausentes.\n" +
+        "     Configure GMB_CLIENT_ID, GMB_CLIENT_SECRET e GMB_REFRESH_TOKEN\n" +
+        "     nas Environment Variables do Coolify para ativar o Google Meu Negócio.\n"
+    );
+  } else {
+    console.log("✅  Google Meu Negócio: credenciais configuradas.");
   }
 });

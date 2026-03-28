@@ -204,7 +204,9 @@ export default function GmbDashboardPage() {
   useEffect(() => { fetchReviews();  }, [fetchReviews]);
 
   const m               = insights?.metrics || {};
-  const isNotConfigured = insights && !insights.configured;
+  // Differentiate: configured=false (not set up) vs api_error (credentials wrong/API down)
+  const isNotConfigured = insights?.configured === false && insights?.reason !== "api_error";
+  const isApiError      = insights?.configured === false && insights?.reason === "api_error";
   const hasInsights     = insights?.configured && insights?.metrics;
 
   return (
@@ -276,11 +278,35 @@ export default function GmbDashboardPage() {
           </motion.div>
         )}
 
-        {/* ── ERROR ── */}
+        {/* ── FETCH ERROR ── */}
         {error && (
           <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
             <span className="font-semibold">Erro:</span> {error}
           </div>
+        )}
+
+        {/* ── API ERROR (credentials wrong / API down) ── */}
+        {!loadingInsights && isApiError && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-start gap-3 bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-5"
+          >
+            <div className="p-2.5 rounded-xl bg-red-500/10 shrink-0 mt-0.5">
+              <Settings className="w-5 h-5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-300">Erro na API do Google Meu Negócio</p>
+              <p className="text-xs text-red-400/80 mt-0.5 break-words">
+                {insights?.error || "Credenciais inválidas ou quota excedida. Verifique GMB_CLIENT_ID, GMB_CLIENT_SECRET e GMB_REFRESH_TOKEN no servidor."}
+              </p>
+              {user?.role === "admin" && (
+                <p className="text-xs text-zinc-500 mt-2">
+                  Acesse o painel do Coolify → Environment Variables para verificar as credenciais OAuth do Google.
+                </p>
+              )}
+            </div>
+          </motion.div>
         )}
 
         {clientId && (
@@ -333,16 +359,21 @@ export default function GmbDashboardPage() {
                 <div>
                   <p className="text-sm font-semibold text-zinc-200">Google Meu Negócio não configurado</p>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    {user?.role === "admin"
-                      ? "Adicione o Location ID em Admin → editar cliente."
-                      : "Entre em contato com a agência para configurar."}
+                    {insights?.reason === "no_credentials"
+                      ? user?.role === "admin"
+                        ? "Credenciais GMB não configuradas no servidor (GMB_CLIENT_ID / GMB_CLIENT_SECRET / GMB_REFRESH_TOKEN)."
+                        : "Serviço Google Meu Negócio não está ativo. Entre em contato com a agência."
+                      : user?.role === "admin"
+                        ? "Adicione o Location ID numérico em Admin → editar cliente."
+                        : "Entre em contato com a agência para configurar."
+                    }
                   </p>
                 </div>
               </motion.div>
             )}
 
             {/* ── KPI CARDS ── */}
-            {(loadingInsights || hasInsights) && (
+            {(loadingInsights || hasInsights) && !isApiError && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                   { label: "Impressões", key: "impressoes", icon: Eye,        color: GMB_GREEN },
@@ -369,7 +400,7 @@ export default function GmbDashboardPage() {
             )}
 
             {/* ── REVIEWS SECTION ── */}
-            {(loadingReviews || reviews?.configured) && (
+            {(loadingReviews || reviews?.configured) && !isApiError && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -426,7 +457,7 @@ export default function GmbDashboardPage() {
             )}
 
             {/* ── ABOUT SECTION ── */}
-            {!isNotConfigured && !loadingInsights && (
+            {!isNotConfigured && !isApiError && !loadingInsights && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
