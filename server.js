@@ -976,14 +976,7 @@ app.get("/api/gmb/insights", async (req, res) => {
   try {
     const { startDate, endDate } = getGmbDateRange(period);
 
-    // Extract numeric location ID from full path "accounts/xxx/locations/yyy"
-    const locIdMatch = clientConfig.gmb_location_id.match(/locations\/(\d+)$/);
-    if (!locIdMatch) {
-      return res.status(400).json({ error: "gmb_location_id inválido. Use o formato: accounts/{id}/locations/{id}" });
-    }
-    const locationId = locIdMatch[1];
-
-    const series  = await getGmbInsights(locationId, startDate, endDate);
+    const series  = await getGmbInsights(clientConfig.gmb_location_id, startDate, endDate);
     const metrics = computeGmbMetrics(series);
 
     res.json({ configured: true, period, metrics, startDate, endDate });

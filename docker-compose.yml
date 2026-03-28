@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # Named volume — persiste o banco SQLite entre redeploys no Coolify
+      - focus_data:/app/config
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/app/config
+    restart: unless-stopped
+
+volumes:
+  focus_data:
+    driver: local

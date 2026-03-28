@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import {
-  ArrowLeft, LogOut, Star, MapPin, Phone, Globe, TrendingUp,
-  Eye, Navigation, MousePointer, Search, Settings, MessageCircle,
+  LogOut, Star, MapPin, Phone, Globe, TrendingUp,
+  Eye, Navigation, Search, Settings, MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -32,13 +32,7 @@ const PERIODS = [
   { id: "monthly", label: "Mensal",  sub: "Últimos 30 dias" },
 ];
 
-const STAR_LABELS = {
-  ONE:   1,
-  TWO:   2,
-  THREE: 3,
-  FOUR:  4,
-  FIVE:  5,
-};
+const STAR_LABELS = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -77,7 +71,7 @@ function timeAgo(dateStr) {
 // KPI CARD
 // ─────────────────────────────────────────────
 
-const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
+const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -85,13 +79,12 @@ const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
     className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2"
   >
     <div className="flex items-center justify-between">
-      <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
-      <span className="p-1.5 rounded-lg" style={{ background: color + "20" }}>
-        <Icon size={14} style={{ color }} />
+      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
+      <span className="p-1.5 rounded-lg shrink-0" style={{ background: color + "20" }}>
+        <Icon className="w-3.5 h-3.5" style={{ color }} />
       </span>
     </div>
-    <div className="text-2xl font-bold text-white">{value}</div>
-    {sub && <div className="text-xs text-zinc-500">{sub}</div>}
+    <div className="text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
   </motion.div>
 );
 
@@ -159,248 +152,345 @@ export default function GmbDashboardPage() {
   const [loadingReviews,  setLoadingReviews]  = useState(true);
   const [error, setError]           = useState("");
 
-  const clientId = user?.clientId || "";
+  if (!user) {
+    window.location.href = "/login";
+    return null;
+  }
+
+  // Derive client ID the same way Google Ads page does
+  const params   = new URLSearchParams(window.location.search);
+  const clientId = user.role === "client"
+    ? user.clientId
+    : (params.get("client") || user.clientId);
 
   const fetchInsights = useCallback(async () => {
+    if (!clientId) {
+      setLoadingInsights(false);
+      return;
+    }
     setLoadingInsights(true);
     setError("");
     try {
-      const params = new URLSearchParams({ period });
-      if (user?.role === "admin" && clientId) params.set("clientId", clientId);
-      const data = await authFetch(`/api/gmb/insights?${params}`).then(r => r.json());
+      const p = new URLSearchParams({ period });
+      if (clientId) p.set("clientId", clientId);
+      const data = await authFetch(`/api/gmb/insights?${p}`).then(r => r.json());
       setInsights(data);
     } catch {
       setError("Erro ao carregar métricas do Google Meu Negócio.");
     } finally {
       setLoadingInsights(false);
     }
-  }, [period, clientId, authFetch, user?.role]);
+  }, [period, clientId, authFetch]);
 
   const fetchReviews = useCallback(async () => {
+    if (!clientId) {
+      setLoadingReviews(false);
+      return;
+    }
     setLoadingReviews(true);
     try {
-      const params = new URLSearchParams();
-      if (user?.role === "admin" && clientId) params.set("clientId", clientId);
-      const data = await authFetch(`/api/gmb/reviews?${params}`).then(r => r.json());
+      const p = new URLSearchParams();
+      if (clientId) p.set("clientId", clientId);
+      const data = await authFetch(`/api/gmb/reviews?${p}`).then(r => r.json());
       setReviews(data);
     } catch {
       // silent — reviews failure shouldn't block insights
     } finally {
       setLoadingReviews(false);
     }
-  }, [clientId, authFetch, user?.role]);
+  }, [clientId, authFetch]);
 
-  useEffect(() => {
-    fetchInsights();
-  }, [fetchInsights]);
+  useEffect(() => { fetchInsights(); }, [fetchInsights]);
+  useEffect(() => { fetchReviews();  }, [fetchReviews]);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
-
-  const m = insights?.metrics || {};
-
+  const m               = insights?.metrics || {};
   const isNotConfigured = insights && !insights.configured;
   const hasInsights     = insights?.configured && insights?.metrics;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60 px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Logo className="w-7 h-7 text-violet-400" />
-            <span className="text-sm font-semibold text-zinc-200">Focus Dashboard</span>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
+
+      {/* ── HEADER — mesmo padrão do Google Ads ── */}
+      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+
+          {/* Logo + título */}
+          <div className="flex items-center gap-2">
+            <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
+              <Logo className="w-4 h-4 text-violet-500" />
+            </div>
+            <span className="text-sm font-bold tracking-tight hidden sm:block">
+              Focus<span className="text-violet-500">Dashboard</span>
+            </span>
+            <span className="text-zinc-600 hidden sm:block">|</span>
+            <span className="text-sm font-semibold hidden sm:block" style={{ color: GMB_GREEN }}>
+              Meu Negócio
+            </span>
           </div>
 
-          <PlatformNav active="gmb" />
+          <div className="ml-4">
+            <PlatformNav active="gmb" />
+          </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-zinc-500 hidden sm:block">{user.name}</span>
             {user?.role === "admin" && (
-              <a href="/admin" className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
-                <Settings size={16} />
+              <a
+                href="/admin"
+                className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                title="Admin"
+              >
+                <Settings className="w-4 h-4" />
               </a>
             )}
-            <button onClick={logout} className="p-2 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors">
-              <LogOut size={16} />
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              title="Sair"
+            >
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* ── Content ── */}
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      {/* ── MAIN CONTENT ── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
-        {/* Title row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <MapPin size={18} style={{ color: GMB_GREEN }} />
-              Google Meu Negócio
-            </h1>
-            <p className="text-sm text-zinc-500 mt-0.5">Visibilidade e avaliações do seu perfil no Google</p>
-          </div>
-
-          {/* Period switcher */}
-          <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 self-start">
-            {PERIODS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  period === p.id
-                    ? "bg-zinc-700 text-white"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-400">{error}</div>
-        )}
-
-        {/* Not configured */}
-        {isNotConfigured && (
+        {/* ── NO CLIENT SELECTED (admin sem ?client=) ── */}
+        {!clientId && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-6"
           >
-            <MapPin size={32} className="mx-auto mb-3 text-zinc-600" />
-            <p className="text-zinc-400 font-medium mb-1">Google Meu Negócio não configurado</p>
-            <p className="text-sm text-zinc-600">
-              {user?.role === "admin"
-                ? "Adicione o Location ID em Admin → editar cliente."
-                : "Entre em contato com a agência para configurar."}
-            </p>
+            <div className="p-3 rounded-xl bg-emerald-500/10">
+              <MapPin className="w-6 h-6" style={{ color: GMB_GREEN }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Nenhum cliente selecionado</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Selecione um cliente no painel principal para visualizar os dados do Google Meu Negócio.
+              </p>
+            </div>
           </motion.div>
         )}
 
-        {/* ── KPI CARDS ── */}
-        {(loadingInsights || hasInsights) && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              { label: "Impressões", key: "impressoes", icon: Eye,          color: GMB_GREEN },
-              { label: "Buscas",     key: "buscas",     icon: Search,        color: "#4285F4" },
-              { label: "Mapas",      key: "mapas",       icon: MapPin,        color: "#EA4335" },
-              { label: "Ligações",   key: "ligacoes",    icon: Phone,         color: "#FBBC04" },
-              { label: "Site",       key: "cliquessite", icon: Globe,         color: "#34A853" },
-              { label: "Direções",   key: "direcoes",    icon: Navigation,    color: "#9C27B0" },
-            ].map((card, i) => (
-              loadingInsights ? (
-                <div key={card.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-24" />
-              ) : (
-                <KpiCard
-                  key={card.key}
-                  label={card.label}
-                  value={fNum(m[card.key])}
-                  icon={card.icon}
-                  color={card.color}
-                  delay={i * 0.05}
-                />
-              )
-            ))}
+        {/* ── ERROR ── */}
+        {error && (
+          <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+            <span className="font-semibold">Erro:</span> {error}
           </div>
         )}
 
-        {/* ── REVIEWS SECTION ── */}
-        {(loadingReviews || reviews?.configured) && (
-          <div>
-            {/* Reviews header */}
-            <div className="flex items-center justify-between mb-4">
+        {clientId && (
+          <>
+            {/* ── TITLE ROW + PERIOD SWITCHER ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="flex items-center justify-between flex-wrap gap-3"
+            >
               <div>
-                <h2 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
-                  <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                  Avaliações
-                </h2>
-                {reviews?.configured && !loadingReviews && (
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {reviews.totalReviewCount} avaliações no total
-                  </p>
-                )}
+                <h1 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+                  <MapPin className="w-5 h-5" style={{ color: GMB_GREEN }} />
+                  Google Meu Negócio
+                </h1>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Visibilidade e avaliações do seu perfil no Google
+                </p>
               </div>
 
-              {/* Average rating badge */}
-              {reviews?.configured && !loadingReviews && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2 flex items-center gap-3">
-                  <span className="text-2xl font-bold text-white">
-                    {Number(reviews.averageRating || 0).toFixed(1)}
-                  </span>
-                  <div>
-                    <StarRating rating={Math.round(reviews.averageRating || 0)} size="lg" />
-                    <p className="text-[11px] text-zinc-500 mt-0.5">{reviews.totalReviewCount} avaliações</p>
-                  </div>
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPeriod(p.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      period === p.id
+                        ? "text-zinc-100 border border-zinc-700"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                    style={period === p.id ? { background: GMB_GREEN + "22" } : {}}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* ── NOT CONFIGURED ── */}
+            {!loadingInsights && isNotConfigured && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-3 bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-6"
+              >
+                <div className="p-3 rounded-xl bg-emerald-500/10">
+                  <Settings className="w-6 h-6" style={{ color: GMB_GREEN }} />
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">Google Meu Negócio não configurado</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {user?.role === "admin"
+                      ? "Adicione o Location ID em Admin → editar cliente."
+                      : "Entre em contato com a agência para configurar."}
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
-            {/* Reviews grid */}
-            {loadingReviews ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-28" />
+            {/* ── KPI CARDS ── */}
+            {(loadingInsights || hasInsights) && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { label: "Impressões", key: "impressoes", icon: Eye,        color: GMB_GREEN },
+                  { label: "Buscas",     key: "buscas",     icon: Search,      color: "#4285F4" },
+                  { label: "Mapas",      key: "mapas",      icon: MapPin,      color: "#EA4335" },
+                  { label: "Ligações",   key: "ligacoes",   icon: Phone,       color: "#FBBC04" },
+                  { label: "Site",       key: "cliquessite",icon: Globe,       color: "#34A853" },
+                  { label: "Direções",   key: "direcoes",   icon: Navigation,  color: "#9C27B0" },
+                ].map((card, i) => (
+                  loadingInsights ? (
+                    <div key={card.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-24" />
+                  ) : (
+                    <KpiCard
+                      key={card.key}
+                      label={card.label}
+                      value={fNum(m[card.key])}
+                      icon={card.icon}
+                      color={card.color}
+                      delay={i * 0.05}
+                    />
+                  )
                 ))}
-              </div>
-            ) : reviews?.reviews?.length > 0 ? (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {reviews.reviews.map((r, i) => (
-                  <ReviewCard key={r.name || i} review={r} delay={i * 0.06} />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-                <MessageCircle size={28} className="mx-auto mb-2 text-zinc-600" />
-                <p className="text-zinc-500 text-sm">Nenhuma avaliação encontrada ainda.</p>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Not configured for reviews */}
-        {reviews && !reviews.configured && !isNotConfigured && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-            <Star size={28} className="mx-auto mb-2 text-zinc-600" />
-            <p className="text-zinc-500 text-sm">Avaliações não disponíveis.</p>
-          </div>
-        )}
-
-        {/* About section */}
-        {!isNotConfigured && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
-          >
-            <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
-              <TrendingUp size={14} style={{ color: GMB_GREEN }} />
-              O que essas métricas significam?
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-3 text-xs text-zinc-400">
-              {[
-                { icon: "👁️", label: "Impressões", desc: "Quantas vezes seu perfil apareceu no Google (buscas + Maps)." },
-                { icon: "🔍", label: "Buscas",     desc: "Visualizações via Google Search — usuários buscando seu negócio." },
-                { icon: "📍", label: "Mapas",      desc: "Visualizações via Google Maps — usuários encontrando você no mapa." },
-                { icon: "📞", label: "Ligações",   desc: "Cliques no número de telefone do seu perfil." },
-                { icon: "🌐", label: "Cliques no site", desc: "Acessos ao seu site originados do perfil do Google." },
-                { icon: "🧭", label: "Direções",   desc: "Solicitações de rota para o seu endereço no Maps." },
-              ].map(item => (
-                <div key={item.label} className="flex gap-2.5">
-                  <span className="text-base">{item.icon}</span>
+            {/* ── REVIEWS SECTION ── */}
+            {(loadingReviews || reviews?.configured) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="space-y-4"
+              >
+                {/* Reviews header */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-zinc-300 font-medium">{item.label}</p>
-                    <p className="text-zinc-500">{item.desc}</p>
+                    <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                      Avaliações
+                    </h2>
+                    {reviews?.configured && !loadingReviews && (
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {reviews.totalReviewCount} avaliações no total
+                      </p>
+                    )}
                   </div>
+
+                  {reviews?.configured && !loadingReviews && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2 flex items-center gap-3">
+                      <span className="text-2xl font-bold text-white">
+                        {Number(reviews.averageRating || 0).toFixed(1)}
+                      </span>
+                      <div>
+                        <StarRating rating={Math.round(reviews.averageRating || 0)} size="lg" />
+                        <p className="text-[11px] text-zinc-500 mt-0.5">{reviews.totalReviewCount} avaliações</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          </motion.div>
+
+                {/* Reviews grid */}
+                {loadingReviews ? (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-28" />
+                    ))}
+                  </div>
+                ) : reviews?.reviews?.length > 0 ? (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {reviews.reviews.map((r, i) => (
+                      <ReviewCard key={r.name || i} review={r} delay={i * 0.06} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
+                    <MessageCircle className="w-7 h-7 mx-auto mb-2 text-zinc-600" />
+                    <p className="text-zinc-500 text-sm">Nenhuma avaliação encontrada ainda.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* ── ABOUT SECTION ── */}
+            {!isNotConfigured && !loadingInsights && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+              >
+                <h3 className="text-sm font-semibold text-zinc-300 mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5" style={{ color: GMB_GREEN }} />
+                  O que essas métricas significam?
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-3 text-xs text-zinc-400">
+                  {[
+                    { icon: "👁️", label: "Impressões",    desc: "Quantas vezes seu perfil apareceu no Google (buscas + Maps)." },
+                    { icon: "🔍", label: "Buscas",         desc: "Visualizações via Google Search — usuários buscando seu negócio." },
+                    { icon: "📍", label: "Mapas",          desc: "Visualizações via Google Maps — usuários encontrando você no mapa." },
+                    { icon: "📞", label: "Ligações",       desc: "Cliques no número de telefone do seu perfil." },
+                    { icon: "🌐", label: "Cliques no site",desc: "Acessos ao seu site originados do perfil do Google." },
+                    { icon: "🧭", label: "Direções",       desc: "Solicitações de rota para o seu endereço no Maps." },
+                  ].map(item => (
+                    <div key={item.label} className="flex gap-2.5">
+                      <span className="text-base">{item.icon}</span>
+                      <div>
+                        <p className="text-zinc-300 font-medium">{item.label}</p>
+                        <p className="text-zinc-500">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </>
         )}
+
+        {/* ── FOOTER ── */}
+        <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="border-t border-zinc-800/60 pt-6 pb-4 flex items-center justify-between flex-wrap gap-3"
+        >
+          <div className="flex items-center gap-2">
+            <div className="bg-zinc-900 p-1 rounded border border-zinc-800">
+              <Logo className="w-3.5 h-3.5 text-violet-500" />
+            </div>
+            <span className="text-xs text-zinc-500">
+              Focus<span className="text-violet-500 font-semibold">Dashboard</span>
+              {" "}— Google Meu Negócio
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {!loadingInsights && hasInsights ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-[11px] text-zinc-600">Dados em tempo real · Business Profile API</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: GMB_GREEN }} />
+                <span className="text-[11px] text-zinc-600">Business Profile API</span>
+              </>
+            )}
+          </div>
+        </motion.footer>
+
       </main>
     </div>
   );
