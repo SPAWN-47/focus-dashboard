@@ -399,8 +399,8 @@ export default function GmbDashboardPage() {
               </div>
             )}
 
-            {/* ── REVIEWS SECTION ── */}
-            {(loadingReviews || reviews?.configured) && !isApiError && (
+            {/* ── REVIEWS SECTION — hidden silently when API is unavailable/restricted ── */}
+            {(loadingReviews || (reviews?.configured && reviews?.reason !== "api_unavailable")) && !isApiError && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

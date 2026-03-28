@@ -1030,6 +1030,12 @@ app.get("/api/gmb/reviews", async (req, res) => {
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     console.error("[gmb/reviews]", errMsg);
+    // mybusinessreviews.googleapis.com requires special Google approval —
+    // return unavailable (not an error) so the UI hides the section silently.
+    const isRestricted = errMsg?.includes("has not been used") || errMsg?.includes("disabled") || errMsg?.includes("SERVICE_DISABLED");
+    if (isRestricted) {
+      return res.json({ configured: false, reason: "api_unavailable" });
+    }
     res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
   }
 });
