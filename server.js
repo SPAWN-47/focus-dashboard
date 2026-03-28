@@ -259,8 +259,7 @@ app.delete("/api/config/clients/:id", (req, res) => {
   if (!clients[req.params.id]) {
     return res.status(404).json({ error: "Cliente não encontrado" });
   }
-  delete clients[req.params.id];
-  saveClients(clients);
+  dbModule.deleteClient(req.params.id);
   res.json({ success: true });
 });
 
