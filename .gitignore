@@ -27,3 +27,6 @@ config/clients.json
 
 # Logs
 *.log
+
+# Pasta de credenciais locais — NUNCA commitar
+credentials/
