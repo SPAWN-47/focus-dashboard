@@ -83,7 +83,7 @@ app.use(
         styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://graph.facebook.com", "https://googleads.googleapis.com", "https://oauth2.googleapis.com", "https://mybusiness.googleapis.com", "https://mybusinessaccountmanagement.googleapis.com", "https://mybusinessbusinessinformation.googleapis.com", "https://businessprofileperformance.googleapis.com"],
+        connectSrc: ["'self'", "https://graph.facebook.com", "https://googleads.googleapis.com", "https://oauth2.googleapis.com", "https://mybusiness.googleapis.com", "https://mybusinessreviews.googleapis.com", "https://mybusinessaccountmanagement.googleapis.com", "https://mybusinessbusinessinformation.googleapis.com", "https://businessprofileperformance.googleapis.com"],
       },
     },
   })
