@@ -241,6 +241,11 @@ export default function GoogleDashboardPage() {
   const [data,       setData]       = useState(null);      // /api/google/insights
   const [trendData,  setTrendData]  = useState(null);      // /api/google/trend
   const [campaigns,  setCampaigns]  = useState(null);      // /api/google/campaigns
+  const [keywords,   setKeywords]   = useState(null);      // /api/google/keywords
+  const [adGroups,   setAdGroups]   = useState(null);      // /api/google/adgroups
+  const [devices,    setDevices]    = useState(null);      // /api/google/devices
+  const [adsData,    setAdsData]    = useState(null);      // /api/google/ads
+  const [kwSearch,   setKwSearch]   = useState("");
 
   if (!user) {
     window.location.href = "/login";
@@ -260,21 +265,33 @@ export default function GoogleDashboardPage() {
     setError(null);
 
     try {
-      const [insRes, trendRes, campRes] = await Promise.all([
+      const [insRes, trendRes, campRes, kwRes, agRes, devRes, adsRes] = await Promise.all([
         authFetch(`/api/google/insights?client=${clientId}&period=${period}`),
         authFetch(`/api/google/trend?client=${clientId}`),
         authFetch(`/api/google/campaigns?client=${clientId}&period=${period}`),
+        authFetch(`/api/google/keywords?client=${clientId}&period=${period}`),
+        authFetch(`/api/google/adgroups?client=${clientId}&period=${period}`),
+        authFetch(`/api/google/devices?client=${clientId}&period=${period}`),
+        authFetch(`/api/google/ads?client=${clientId}&period=${period}`),
       ]);
 
-      const [ins, trend, camp] = await Promise.all([
+      const [ins, trend, camp, kw, ag, dev, ads] = await Promise.all([
         insRes.json(),
         trendRes.json(),
         campRes.json(),
+        kwRes.json(),
+        agRes.json(),
+        devRes.json(),
+        adsRes.json(),
       ]);
 
       setData(ins);
       setTrendData(trend);
       setCampaigns(camp);
+      setKeywords(kw);
+      setAdGroups(ag);
+      setDevices(dev);
+      setAdsData(ads);
     } catch (err) {
       setError(err.message || "Erro ao carregar dados");
     } finally {
@@ -324,13 +341,15 @@ export default function GoogleDashboardPage() {
   // Build KPI array from real data
   const kpiData = data?.hasData
     ? [
-        { label: "Impressões",   value: fNum(m.impressoes),   delta: data.delta?.impressoes ?? null, icon: Eye,          color: "#0ea5e9", lowerIsBetter: false },
-        { label: "Cliques",      value: fNum(m.cliques),      delta: data.delta?.cliques    ?? null, icon: MousePointer, color: GOOGLE_BLUE, lowerIsBetter: false },
-        { label: "CTR",          value: fPct(m.ctr),          delta: null,                           icon: Target,       color: "#8b5cf6", lowerIsBetter: false },
-        { label: "CPC Médio",    value: fBRL(m.cpc),          delta: null,                           icon: DollarSign,   color: "#22c55e", lowerIsBetter: true },
-        { label: "Conversões",   value: fNum(m.conversas),    delta: data.delta?.conversas  ?? null, icon: Zap,          color: "#10b981", lowerIsBetter: false },
-        { label: "CPL",          value: m.cpl > 0 ? fBRL(m.cpl) : "—", delta: data.delta?.cpl ?? null, icon: Target, color: "#f97316", lowerIsBetter: true },
-        { label: "Investimento", value: fBRL0(m.gasto),       delta: data.delta?.gasto      ?? null, icon: DollarSign,   color: "#f59e0b", lowerIsBetter: false },
+        { label: "Impressões",       value: fNum(m.impressoes),   delta: data.delta?.impressoes ?? null, icon: Eye,          color: "#0ea5e9", lowerIsBetter: false },
+        { label: "Cliques",          value: fNum(m.cliques),      delta: data.delta?.cliques    ?? null, icon: MousePointer, color: GOOGLE_BLUE, lowerIsBetter: false },
+        { label: "CTR",              value: fPct(m.ctr),          delta: null,                           icon: Target,       color: "#8b5cf6", lowerIsBetter: false },
+        { label: "CPC Médio",        value: fBRL(m.cpc),          delta: null,                           icon: DollarSign,   color: "#22c55e", lowerIsBetter: true },
+        { label: "Conversões",       value: fNum(m.conversas),    delta: data.delta?.conversas  ?? null, icon: Zap,          color: "#10b981", lowerIsBetter: false },
+        { label: "CPL",              value: m.cpl > 0 ? fBRL(m.cpl) : "—", delta: data.delta?.cpl ?? null, icon: Target, color: "#f97316", lowerIsBetter: true },
+        { label: "Investimento",     value: fBRL0(m.gasto),       delta: data.delta?.gasto      ?? null, icon: DollarSign,   color: "#f59e0b", lowerIsBetter: false },
+        ...(m.roas != null ? [{ label: "ROAS", value: `${(m.roas).toFixed(2)}x`, delta: data.delta?.roas ?? null, icon: TrendingUp, color: "#a855f7", lowerIsBetter: false }] : []),
+        ...(m.impressionShare != null ? [{ label: "Imp. Share", value: fPct(m.impressionShare), delta: null, icon: BarChart3, color: "#06b6d4", lowerIsBetter: false }] : []),
       ]
     : [];
 
@@ -489,7 +508,7 @@ export default function GoogleDashboardPage() {
 
             {/* ── KPI GRID ── */}
             {kpiData.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {kpiData.map((kpi, i) => (
                   <KpiCard
                     key={kpi.label}
@@ -530,6 +549,69 @@ export default function GoogleDashboardPage() {
               </div>
               <TrendChart days={trendData?.days || []} />
             </motion.div>
+
+            {/* ── DEVICE BREAKDOWN ── */}
+            {devices?.hasData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.35 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+              >
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-zinc-100">Performance por Dispositivo</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">Distribuição de cliques e investimento</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {(devices.devices || []).map((d, i) => (
+                    <motion.div
+                      key={d.device}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.37 + i * 0.06 }}
+                      className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-4"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xl">{d.emoji}</span>
+                        <span className="text-sm font-semibold text-zinc-200">{d.label}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-500">Cliques</span>
+                            <span className="text-zinc-300 font-medium">{fNum(d.cliques)} <span className="text-zinc-500">({d.shareCliques.toFixed(0)}%)</span></span>
+                          </div>
+                          <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${d.shareCliques}%`, background: d.color }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-zinc-500">Investimento</span>
+                            <span className="text-zinc-300 font-medium">{fBRL0(d.gasto)} <span className="text-zinc-500">({d.shareGasto.toFixed(0)}%)</span></span>
+                          </div>
+                          <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${d.shareGasto}%`, background: d.color }} />
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-[11px] pt-1 border-t border-zinc-700/50">
+                          <span className="text-zinc-500">CTR</span>
+                          <span className="text-zinc-300">{fPct(d.ctr)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-zinc-500">CPC</span>
+                          <span className="text-zinc-300">{fBRL(d.cpc)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-zinc-500">Conv.</span>
+                          <span className="text-zinc-300 font-semibold">{fNum(d.conversas)}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             {/* ── CAMPAIGNS TABLE ── */}
             <motion.div
@@ -610,6 +692,235 @@ export default function GoogleDashboardPage() {
                 </div>
               )}
             </motion.div>
+
+            {/* ── TOP ADS (RSA/ETA COPY) ── */}
+            {adsData?.hasData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.41 }}
+              >
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold text-zinc-100">Top Anúncios</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">Copy dos anúncios com mais cliques no período</p>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {(adsData.ads || []).slice(0, 6).map((ad, i) => (
+                    <motion.div
+                      key={`${ad.id}-${i}`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.43 + i * 0.05 }}
+                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-zinc-700 transition-colors"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-zinc-500 truncate">{ad.campaign} · {ad.adGroup}</p>
+                        </div>
+                        <StatusDot status={ad.status} />
+                      </div>
+
+                      {/* Headlines */}
+                      {ad.headlines.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-xs font-medium text-zinc-400 mb-1">Headlines</p>
+                          <div className="space-y-1">
+                            {ad.headlines.map((h, j) => (
+                              <p key={j} className="text-sm font-semibold text-blue-400 leading-snug">{h}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Descriptions */}
+                      {ad.descriptions.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-zinc-400 mb-1">Descrições</p>
+                          {ad.descriptions.map((d, j) => (
+                            <p key={j} className="text-xs text-zinc-400 leading-relaxed">{d}</p>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Metrics row */}
+                      <div className="flex items-center gap-3 pt-2 border-t border-zinc-800 flex-wrap">
+                        <span className="text-[11px] text-zinc-500">{fNum(ad.cliques)} cliques</span>
+                        <span className="text-[11px] text-zinc-600">·</span>
+                        <span className="text-[11px] text-zinc-500">CTR {fPct(ad.ctr)}</span>
+                        <span className="text-[11px] text-zinc-600">·</span>
+                        <span className="text-[11px] text-zinc-500">Conv. {fNum(ad.conversas)}</span>
+                        <span className="text-[11px] text-zinc-600">·</span>
+                        <span className="text-[11px] text-zinc-300 font-medium">{fBRL0(ad.gasto)}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── AD GROUPS + QUALITY SCORE ── */}
+            {adGroups?.hasData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.42 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
+              >
+                <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">Grupos de Anúncios</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Performance por grupo · Quality Score de 1 a 10
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />≥ 7 Bom</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-yellow-500" />4–6 Médio</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500" />≤ 3 Ruim</span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        {["Grupo", "Campanha", "Status", "QS", "Cliques", "CTR", "CPC", "Conv.", "CPL", "Gasto"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(adGroups.adGroups || []).map((ag, i) => {
+                        const qs = ag.qualityScore;
+                        const qsColor = qs == null ? "text-zinc-600"
+                          : qs >= 7 ? "text-emerald-400"
+                          : qs >= 4 ? "text-yellow-400"
+                          : "text-red-400";
+                        const qsBg = qs == null ? "bg-zinc-800"
+                          : qs >= 7 ? "bg-emerald-500/15"
+                          : qs >= 4 ? "bg-yellow-500/15"
+                          : "bg-red-500/15";
+                        return (
+                          <motion.tr
+                            key={`${ag.name}-${i}`}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.45 + i * 0.04 }}
+                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-zinc-200 font-medium max-w-[200px]">
+                              <span className="truncate block">{ag.name}</span>
+                            </td>
+                            <td className="px-4 py-3 text-zinc-500 text-xs max-w-[160px]">
+                              <span className="truncate block">{ag.campaign}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <StatusDot status={ag.status} />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {qs != null ? (
+                                <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${qsBg} ${qsColor}`}>
+                                  {qs}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-600 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fNum(ag.cliques)}</td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fPct(ag.ctr)}</td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fBRL(ag.cpc)}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(ag.conversas)}</td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ag.cpl > 0 ? fBRL(ag.cpl) : "—"}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(ag.gasto)}</td>
+                          </motion.tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── SEARCH TERMS / KEYWORDS ── */}
+            {keywords?.hasData && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.48 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
+              >
+                <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">Termos de Pesquisa</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Palavras-chave que acionaram seus anúncios no período
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filtrar termos..."
+                      value={kwSearch}
+                      onChange={(e) => setKwSearch(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors w-44"
+                    />
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        {[
+                          { label: "Termo de Pesquisa" },
+                          { label: "Impressões" },
+                          { label: "Cliques" },
+                          { label: "CTR" },
+                          { label: "CPC" },
+                          { label: "Conv." },
+                          { label: "Gasto" },
+                        ].map((h) => (
+                          <th key={h.label} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                            {h.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(keywords.keywords || [])
+                        .filter((k) => k.termo.toLowerCase().includes(kwSearch.toLowerCase()))
+                        .map((k, i) => (
+                          <motion.tr
+                            key={`${k.termo}-${i}`}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.5 + i * 0.03 }}
+                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                          >
+                            <td className="px-4 py-3 text-zinc-200 font-medium max-w-[280px]">
+                              <span className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GOOGLE_BLUE }} />
+                                <span className="truncate block">{k.termo}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fNum(k.impressoes)}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fNum(k.cliques)}</td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fPct(k.ctr)}</td>
+                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fBRL(k.cpc)}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(k.conversas)}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(k.gasto)}</td>
+                          </motion.tr>
+                        ))}
+                    </tbody>
+                  </table>
+                  {(keywords.keywords || []).filter((k) => k.termo.toLowerCase().includes(kwSearch.toLowerCase())).length === 0 && (
+                    <div className="px-5 py-8 text-center text-sm text-zinc-600">
+                      Nenhum termo encontrado para "{kwSearch}".
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
 
             {/* ── AD TYPES ── */}
             <motion.div

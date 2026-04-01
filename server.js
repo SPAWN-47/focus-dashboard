@@ -790,7 +790,7 @@ app.get("/api/google/insights", async (req, res) => {
       return res.json({ configured: true, hasData: false, client: clientConfig.name, period });
     }
 
-    const { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc } = computeGoogleMetrics(rows);
+    const { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc, impressionShare } = computeGoogleMetrics(rows);
 
     const clientData = getClient(clientId);
     const targets = {
@@ -800,6 +800,38 @@ app.get("/api/google/insights", async (req, res) => {
       target_spend:      clientData?.target_spend      || 0,
     };
 
+    // ROAS — only when ticket_medio is configured
+    const roas = targets.ticket_medio > 0 && gasto > 0
+      ? (conversas * targets.ticket_medio) / gasto
+      : null;
+
+    // Period-over-period delta via a second GAQL query for the previous window
+    let delta = null;
+    try {
+      const prevRange = getGooglePrevDateRange(period);
+      const prevGaql = `
+        SELECT metrics.cost_micros, metrics.impressions, metrics.clicks,
+               metrics.conversions, metrics.ctr, metrics.average_cpc,
+               metrics.average_cpm, metrics.search_impression_share
+        FROM customer
+        WHERE segments.date ${prevRange}
+      `;
+      const prevRows = await queryGoogleAds(clientConfig.google_ads_customer_id, prevGaql);
+      if (prevRows && prevRows.length > 0) {
+        const prev = computeGoogleMetrics(prevRows);
+        delta = {
+          gasto:      prev.gasto      > 0 ? ((gasto      - prev.gasto)      / prev.gasto)      * 100 : null,
+          impressoes: prev.impressoes > 0 ? ((impressoes - prev.impressoes) / prev.impressoes) * 100 : null,
+          cliques:    prev.cliques    > 0 ? ((cliques    - prev.cliques)    / prev.cliques)    * 100 : null,
+          conversas:  prev.conversas  > 0 ? ((conversas  - prev.conversas)  / prev.conversas)  * 100 : null,
+          cpl:        prev.cpl        > 0 ? ((cpl        - prev.cpl)        / prev.cpl)        * 100 : null,
+          roas:       prev.roas       > 0 ? ((roas       - prev.roas)       / prev.roas)       * 100 : null,
+        };
+      }
+    } catch (deltaErr) {
+      console.warn("[google/insights] delta query failed:", deltaErr.message);
+    }
+
     const payload = {
       configured: true,
       hasData:    true,
@@ -807,11 +839,29 @@ app.get("/api/google/insights", async (req, res) => {
       clientId,
       period,
       targets,
-      delta:      null,
-      metrics:    { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc },
+      delta,
+      metrics:    { gasto, impressoes, cliques, conversas, cpl, ctr, cpm, cpc, impressionShare, roas },
     };
 
     setCachedInsights(cacheKey, period, payload);
+
+    // Anomaly detection — same rules as Meta (runs only for daily period to avoid false positives)
+    if (period === "daily") {
+      try {
+        const spendThreshold = targets.target_spend > 0 ? targets.target_spend * 0.005 : 15;
+        if (gasto === 0 && impressoes === 0) {
+          logAnomaly(clientId, "google_parada", "critical", "Google Ads sem atividade ontem");
+        } else if (gasto > spendThreshold && conversas === 0) {
+          logAnomaly(clientId, "google_sem_conversas", "warning", `Google Ads: R$ ${gasto.toFixed(2)} investidos sem conversões`);
+        }
+        if (targets.target_cpl_max > 0 && cpl > 0 && cpl > targets.target_cpl_max) {
+          logAnomaly(clientId, "google_cpl_alto", "warning", `Google Ads CPL R$ ${cpl.toFixed(2)} acima do target R$ ${targets.target_cpl_max.toFixed(2)}`);
+        }
+      } catch (anomalyErr) {
+        console.warn("[google/insights] anomaly check failed:", anomalyErr.message);
+      }
+    }
+
     res.json(payload);
   } catch (err) {
     const googleErr = err.response?.data?.error?.message || err.message;
@@ -819,6 +869,34 @@ app.get("/api/google/insights", async (req, res) => {
     res.status(500).json({ error: googleErr });
   }
 });
+
+// ─── GOOGLE ADS — PREVIOUS PERIOD HELPER ─────────────────────────────────────
+
+function getGooglePrevDateRange(period) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const fmt = (d) => d.toISOString().split("T")[0];
+
+  if (period === "daily") {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 2);
+    const s = fmt(d);
+    return `BETWEEN '${s}' AND '${s}'`;
+  } else if (period === "weekly") {
+    const end = new Date(today);
+    end.setDate(end.getDate() - 8);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    return `BETWEEN '${fmt(start)}' AND '${fmt(end)}'`;
+  } else {
+    // monthly — previous 30-day window
+    const end = new Date(today);
+    end.setDate(end.getDate() - 31);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 29);
+    return `BETWEEN '${fmt(start)}' AND '${fmt(end)}'`;
+  }
+}
 
 // ─── GOOGLE ADS — TREND ───────────────────────────────────────────────────────
 
@@ -845,6 +923,10 @@ app.get("/api/google/trend", async (req, res) => {
     return res.json({ configured: false, hasData: false });
   }
 
+  const trendCacheKey = `google_trend_${clientId}`;
+  const cachedTrend = getCachedInsights(trendCacheKey, "monthly");
+  if (cachedTrend) return res.json({ ...cachedTrend, fromCache: true });
+
   try {
     const gaql = `
       SELECT segments.date, metrics.cost_micros, metrics.impressions,
@@ -860,7 +942,7 @@ app.get("/api/google/trend", async (req, res) => {
       const m = row.metrics   || {};
       const s = row.segments  || {};
       return {
-        date:       s.date       ?? s.date,
+        date:       s.date,
         gasto:      Number(m.costMicros  ?? m.cost_micros  ?? 0) / 1_000_000,
         impressoes: Number(m.impressions ?? 0),
         cliques:    Number(m.clicks      ?? 0),
@@ -868,7 +950,9 @@ app.get("/api/google/trend", async (req, res) => {
       };
     });
 
-    res.json({ configured: true, hasData: days.length > 0, days });
+    const trendPayload = { configured: true, hasData: days.length > 0, days };
+    setCachedInsights(trendCacheKey, "monthly", trendPayload);
+    res.json(trendPayload);
   } catch (err) {
     const googleErr = err.response?.data?.error?.message || err.message;
     console.error("[google/trend]", googleErr);
@@ -928,7 +1012,7 @@ app.get("/api/google/campaigns", async (req, res) => {
       const gasto      = costMicros / 1_000_000;
       const cpc        = cpcMicros  / 1_000_000;
       const ctr        = ctrRaw * 100;
-      const cpl        = conversas > 0 ? gasto / conversas : 0;
+      const cpl        = conversas > 0 ? gasto / conversas : null;
 
       return {
         name:      c.name           || "—",
@@ -947,6 +1031,380 @@ app.get("/api/google/campaigns", async (req, res) => {
   } catch (err) {
     const googleErr = err.response?.data?.error?.message || err.message;
     console.error("[google/campaigns]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — AD GROUPS ────────────────────────────────────────────────────
+
+app.get("/api/google/adgroups", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT campaign.name,
+             ad_group.name, ad_group.status,
+             ad_group.cpc_bid_micros,
+             metrics.cost_micros, metrics.impressions,
+             metrics.clicks, metrics.conversions,
+             metrics.ctr, metrics.average_cpc,
+             ad_group_criterion.quality_info.quality_score,
+             ad_group_criterion.quality_info.search_predicted_ctr,
+             ad_group_criterion.quality_info.creative_quality_score,
+             ad_group_criterion.quality_info.post_click_quality_score
+      FROM ad_group_criterion
+      WHERE segments.date DURING ${dateRange}
+        AND ad_group_criterion.type = KEYWORD
+        AND ad_group_criterion.status != REMOVED
+        AND metrics.impressions > 0
+      ORDER BY metrics.clicks DESC
+      LIMIT 50
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    // Aggregate per ad group (multiple keyword rows per group)
+    const groupMap = new Map();
+    for (const row of rows || []) {
+      const ag  = row.adGroup   || row.ad_group   || {};
+      const cam = row.campaign  || {};
+      const m   = row.metrics   || {};
+      const crit = row.adGroupCriterion || row.ad_group_criterion || {};
+      const qi  = crit.qualityInfo || crit.quality_info || {};
+
+      const key = ag.name || "—";
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          campaign:    cam.name  || "—",
+          name:        ag.name   || "—",
+          status:      ag.status || "UNKNOWN",
+          costMicros:  0, impressoes: 0, cliques: 0, conversas: 0,
+          ctrSum: 0, cpcMicros: 0, rowCount: 0,
+          qualityScore: Number(qi.qualityScore ?? qi.quality_score ?? 0) || null,
+          predCtr:      qi.searchPredictedCtr   ?? qi.search_predicted_ctr   ?? null,
+          adRelevance:  qi.creativeQualityScore  ?? qi.creative_quality_score  ?? null,
+          landingPage:  qi.postClickQualityScore ?? qi.post_click_quality_score ?? null,
+        });
+      }
+      const g = groupMap.get(key);
+      g.costMicros  += Number(m.costMicros  ?? m.cost_micros  ?? 0);
+      g.impressoes  += Number(m.impressions ?? 0);
+      g.cliques     += Number(m.clicks      ?? 0);
+      g.conversas   += Number(m.conversions ?? 0);
+      g.ctrSum      += Number(m.ctr         ?? 0);
+      g.cpcMicros   += Number(m.averageCpc  ?? m.average_cpc  ?? 0);
+      g.rowCount++;
+    }
+
+    const adGroups = Array.from(groupMap.values()).map((g) => {
+      const gasto = g.costMicros / 1_000_000;
+      const cpc   = g.rowCount > 0 ? (g.cpcMicros / g.rowCount) / 1_000_000 : 0;
+      const ctr   = g.rowCount > 0 ? (g.ctrSum    / g.rowCount) * 100        : 0;
+      const cpl   = g.conversas > 0 ? gasto / g.conversas : null;
+      return {
+        campaign:    g.campaign,
+        name:        g.name,
+        status:      g.status,
+        gasto, impressoes: g.impressoes, cliques: g.cliques,
+        conversas: g.conversas, ctr, cpc, cpl,
+        qualityScore: g.qualityScore,
+        predCtr:      g.predCtr,
+        adRelevance:  g.adRelevance,
+        landingPage:  g.landingPage,
+      };
+    });
+
+    res.json({ configured: true, hasData: adGroups.length > 0, adGroups });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/adgroups]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — DEVICE BREAKDOWN ────────────────────────────────────────────
+
+app.get("/api/google/devices", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT segments.device,
+             metrics.cost_micros, metrics.impressions,
+             metrics.clicks, metrics.conversions,
+             metrics.ctr, metrics.average_cpc
+      FROM customer
+      WHERE segments.date DURING ${dateRange}
+        AND metrics.impressions > 0
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    const DEVICE_LABELS = {
+      MOBILE:  { label: "Mobile",  emoji: "📱", color: "#4285F4" },
+      DESKTOP: { label: "Desktop", emoji: "💻", color: "#10b981" },
+      TABLET:  { label: "Tablet",  emoji: "⬜", color: "#f97316" },
+      OTHER:   { label: "Outros",  emoji: "📡", color: "#8b5cf6" },
+    };
+
+    const devices = (rows || []).map((row) => {
+      const m  = row.metrics  || {};
+      const s  = row.segments || {};
+      const deviceKey = (s.device || "OTHER").toUpperCase();
+      const info = DEVICE_LABELS[deviceKey] || DEVICE_LABELS.OTHER;
+      const costMicros = Number(m.costMicros  ?? m.cost_micros  ?? 0);
+      const cpcMicros  = Number(m.averageCpc  ?? m.average_cpc  ?? 0);
+      const gasto      = costMicros / 1_000_000;
+      const cpc        = cpcMicros  / 1_000_000;
+      const ctr        = Number(m.ctr ?? 0) * 100;
+      const cliques    = Number(m.clicks      ?? 0);
+      const impressoes = Number(m.impressions ?? 0);
+      const conversas  = Number(m.conversions ?? 0);
+      return { device: deviceKey, label: info.label, emoji: info.emoji, color: info.color, gasto, impressoes, cliques, conversas, ctr, cpc };
+    });
+
+    // Compute totals for share % calculation
+    const totalCliques = devices.reduce((s, d) => s + d.cliques, 0);
+    const totalGasto   = devices.reduce((s, d) => s + d.gasto,   0);
+    const result = devices.map((d) => ({
+      ...d,
+      shareCliques: totalCliques > 0 ? (d.cliques / totalCliques) * 100 : 0,
+      shareGasto:   totalGasto   > 0 ? (d.gasto   / totalGasto)   * 100 : 0,
+    }));
+
+    res.json({ configured: true, hasData: result.length > 0, devices: result });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/devices]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — ADS / RSA COPY ──────────────────────────────────────────────
+
+app.get("/api/google/ads", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT campaign.name,
+             ad_group.name,
+             ad_group_ad.ad.id,
+             ad_group_ad.ad.type,
+             ad_group_ad.status,
+             ad_group_ad.ad.responsive_search_ad.headlines,
+             ad_group_ad.ad.responsive_search_ad.descriptions,
+             ad_group_ad.ad.expanded_text_ad.headline_part1,
+             ad_group_ad.ad.expanded_text_ad.headline_part2,
+             ad_group_ad.ad.expanded_text_ad.description,
+             ad_group_ad.ad.final_urls,
+             metrics.cost_micros, metrics.impressions,
+             metrics.clicks, metrics.conversions,
+             metrics.ctr, metrics.average_cpc
+      FROM ad_group_ad
+      WHERE segments.date DURING ${dateRange}
+        AND ad_group_ad.status != REMOVED
+        AND metrics.impressions > 0
+      ORDER BY metrics.clicks DESC
+      LIMIT 20
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    const ads = (rows || []).map((row, i) => {
+      const m   = row.metrics     || {};
+      const aga = row.adGroupAd   || row.ad_group_ad || {};
+      const ad  = aga.ad          || {};
+      const cam = row.campaign    || {};
+      const ag  = row.adGroup     || row.ad_group    || {};
+
+      const costMicros = Number(m.costMicros ?? m.cost_micros ?? 0);
+      const cpcMicros  = Number(m.averageCpc ?? m.average_cpc ?? 0);
+      const gasto      = costMicros / 1_000_000;
+      const cpc        = cpcMicros  / 1_000_000;
+      const ctr        = Number(m.ctr ?? 0) * 100;
+      const cliques    = Number(m.clicks      ?? 0);
+      const impressoes = Number(m.impressions ?? 0);
+      const conversas  = Number(m.conversions ?? 0);
+
+      // Extract headlines/descriptions depending on ad type
+      const rsa = ad.responsiveSearchAd   || ad.responsive_search_ad   || {};
+      const eta = ad.expandedTextAd       || ad.expanded_text_ad       || {};
+
+      const headlines = (rsa.headlines || [])
+        .map((h) => h.text || h)
+        .filter(Boolean)
+        .slice(0, 3);
+
+      const descriptions = (rsa.descriptions || [])
+        .map((d) => d.text || d)
+        .filter(Boolean)
+        .slice(0, 2);
+
+      // ETA fallback
+      if (headlines.length === 0 && eta.headlinePart1) {
+        headlines.push(eta.headlinePart1 ?? eta.headline_part1);
+        if (eta.headlinePart2 ?? eta.headline_part2) headlines.push(eta.headlinePart2 ?? eta.headline_part2);
+      }
+      if (descriptions.length === 0 && (eta.description || eta.descriptionPart1)) {
+        descriptions.push(eta.description || eta.descriptionPart1 || eta.description_part1 || "");
+      }
+
+      const finalUrl = (ad.finalUrls ?? ad.final_urls ?? [])[0] || null;
+
+      return {
+        id:           ad.id || String(i),
+        type:         ad.type || aga.adType || "UNKNOWN",
+        status:       aga.status || "UNKNOWN",
+        campaign:     cam.name || "—",
+        adGroup:      ag.name  || "—",
+        headlines,
+        descriptions,
+        finalUrl,
+        gasto, impressoes, cliques, conversas, ctr, cpc,
+      };
+    });
+
+    res.json({ configured: true, hasData: ads.length > 0, ads });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/ads]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
+// ─── GOOGLE ADS — SEARCH TERMS ─────────────────────────────────────────────────
+
+app.get("/api/google/keywords", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    const gaql = `
+      SELECT search_term_view.search_term,
+             metrics.cost_micros, metrics.impressions,
+             metrics.clicks, metrics.conversions,
+             metrics.ctr, metrics.average_cpc
+      FROM search_term_view
+      WHERE segments.date DURING ${dateRange}
+        AND metrics.impressions > 0
+      ORDER BY metrics.clicks DESC
+      LIMIT 50
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+
+    const keywords = (rows || []).map((row) => {
+      const m    = row.metrics         || {};
+      const st   = row.searchTermView  || row.search_term_view || {};
+      const costMicros = Number(m.costMicros  ?? m.cost_micros  ?? 0);
+      const cpcMicros  = Number(m.averageCpc  ?? m.average_cpc  ?? 0);
+      const ctrRaw     = Number(m.ctr         ?? 0);
+      const impressoes = Number(m.impressions ?? 0);
+      const cliques    = Number(m.clicks      ?? 0);
+      const conversas  = Number(m.conversions ?? 0);
+      const gasto      = costMicros / 1_000_000;
+      const cpc        = cpcMicros  / 1_000_000;
+      const ctr        = ctrRaw * 100;
+
+      return {
+        termo:     st.searchTerm ?? st.search_term ?? "—",
+        gasto,
+        impressoes,
+        cliques,
+        conversas,
+        ctr,
+        cpc,
+      };
+    });
+
+    res.json({ configured: true, hasData: keywords.length > 0, keywords });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/keywords]", googleErr);
     res.status(500).json({ error: googleErr });
   }
 });
