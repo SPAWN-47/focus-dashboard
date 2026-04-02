@@ -4,6 +4,7 @@ import {
   RefreshCw, Eye, Users, MousePointer, MessageCircle,
   TrendingUp, DollarSign, Target, BarChart3, AlertCircle,
   CheckCircle2, XCircle, ExternalLink, ArrowLeft, LogOut, Settings,
+  FileDown,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -526,7 +527,27 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [campaignSort, setCampaignSort] = useState({ key: "gasto", dir: "desc" });
+
+  const handleExportMonthly = async () => {
+    if (!activeClient || exporting) return;
+    setExporting(true);
+    try {
+      const res  = await authFetch(`/api/report/monthly?client=${activeClient}`);
+      const json = await res.json();
+      if (!json.html) throw new Error(json.error || "Erro ao gerar relatório");
+      const blob = new Blob([json.html], { type: "text/html;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const win  = window.open(url, "_blank");
+      if (!win) alert("Permita pop-ups para abrir o relatório.");
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (err) {
+      alert(`Não foi possível gerar o relatório:\n${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Load client list from API
   useEffect(() => {
@@ -718,7 +739,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── PERIOD SELECTOR + DATE BADGE ── */}
+        {/* ── PERIOD SELECTOR + DATE BADGE + EXPORT ── */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
             {PERIODS.map((period) => (
@@ -748,6 +769,25 @@ export default function DashboardPage() {
               {getDateRange(activePeriod)}
             </span>
           </div>
+
+          {/* Export monthly report — always generates monthly, regardless of selected period */}
+          <button
+            onClick={handleExportMonthly}
+            disabled={exporting || !activeClient}
+            className="ml-auto flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: exporting ? "#7c3aed22" : "#7c3aed15",
+              borderColor: "#7c3aed50",
+              color: "#a78bfa",
+            }}
+            title="Exportar relatório mensal (abre em nova aba para salvar como PDF)"
+          >
+            {exporting
+              ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              : <FileDown className="w-3.5 h-3.5" />
+            }
+            {exporting ? "Gerando..." : "Exportar Relatório"}
+          </button>
         </div>
 
         {/* ── ERROR STATE ── */}
