@@ -1035,6 +1035,97 @@ app.get("/api/google/campaigns", async (req, res) => {
   }
 });
 
+// ─── GOOGLE ADS — YOUTUBE VIDEO CAMPAIGNS ────────────────────────────────────
+
+app.get("/api/google/youtube", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!process.env.GOOGLE_ADS_CLIENT_ID) {
+    return res.json({ configured: false });
+  }
+
+  const { client: clientId, period } = req.query;
+
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients      = loadClients();
+  const clientConfig = clients[clientId];
+  const dateRange    = GOOGLE_DATE_RANGES[period] || GOOGLE_DATE_RANGES.monthly;
+
+  if (!clientConfig) return res.status(400).json({ error: "Invalid client" });
+  if (!clientConfig.google_ads_customer_id) {
+    return res.json({ configured: false, hasData: false });
+  }
+
+  try {
+    // ── Campaign-level YouTube metrics ────────────────────────────────────────
+    const campGaql = `
+      SELECT campaign.name, campaign.status,
+             metrics.cost_micros, metrics.impressions,
+             metrics.video_views, metrics.video_view_rate,
+             metrics.average_cpv, metrics.clicks,
+             metrics.conversions, metrics.ctr
+      FROM campaign
+      WHERE segments.date DURING ${dateRange}
+        AND campaign.advertising_channel_type = VIDEO
+        AND metrics.impressions > 0
+      ORDER BY metrics.video_views DESC
+      LIMIT 20
+    `;
+
+    const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, campGaql);
+
+    if (!rows || rows.length === 0) {
+      return res.json({ configured: true, hasData: false });
+    }
+
+    // ── Normalize per-campaign ────────────────────────────────────────────────
+    const campaigns = (rows || []).map((row) => {
+      const m   = row.metrics  || {};
+      const c   = row.campaign || {};
+      const gasto      = Number(m.costMicros  ?? m.cost_micros  ?? 0) / 1_000_000;
+      const cpv        = Number(m.averageCpv  ?? m.average_cpv  ?? 0) / 1_000_000;
+      const ctr        = Number(m.ctr         ?? 0) * 100;
+      const viewRate   = Number(m.videoViewRate ?? m.video_view_rate ?? 0) * 100;
+      const views      = Number(m.videoViews  ?? m.video_views  ?? 0);
+      const impressoes = Number(m.impressions ?? 0);
+      const cliques    = Number(m.clicks      ?? 0);
+      const conversas  = Number(m.conversions ?? 0);
+      const cpconv     = conversas > 0 ? gasto / conversas : null;
+
+      return {
+        name:      c.name   || "—",
+        status:    c.status || "UNKNOWN",
+        gasto, views, viewRate, cpv, impressoes, cliques, conversas, ctr, cpconv,
+      };
+    });
+
+    // ── Account-level totals (sum across all VIDEO campaigns) ─────────────────
+    const totals = campaigns.reduce((acc, c) => ({
+      gasto:      acc.gasto      + c.gasto,
+      views:      acc.views      + c.views,
+      impressoes: acc.impressoes + c.impressoes,
+      cliques:    acc.cliques    + c.cliques,
+      conversas:  acc.conversas  + c.conversas,
+    }), { gasto: 0, views: 0, impressoes: 0, cliques: 0, conversas: 0 });
+
+    totals.viewRate = totals.impressoes > 0
+      ? (totals.views / totals.impressoes) * 100
+      : 0;
+    totals.cpv   = totals.views > 0 ? totals.gasto / totals.views : null;
+    totals.cpconv = totals.conversas > 0 ? totals.gasto / totals.conversas : null;
+
+    res.json({ configured: true, hasData: true, totals, campaigns });
+  } catch (err) {
+    const googleErr = err.response?.data?.error?.message || err.message;
+    console.error("[google/youtube]", googleErr);
+    res.status(500).json({ error: googleErr });
+  }
+});
+
 // ─── GOOGLE ADS — AD GROUPS ────────────────────────────────────────────────────
 
 app.get("/api/google/adgroups", async (req, res) => {
