@@ -699,98 +699,126 @@ export default function GoogleDashboardPage() {
             </motion.div>
 
             {/* ── YOUTUBE ADS ── */}
-            {youtube?.hasData && (() => {
-              const t = youtube.totals || {};
-              const ytKpis = [
-                { label: "Views",        value: fNum(t.views),                          color: YOUTUBE_RED,  icon: PlayCircle },
-                { label: "View Rate",    value: fPct(t.viewRate),                       color: "#f97316",    icon: Eye        },
-                { label: "CPV Médio",    value: t.cpv   != null ? fBRL(t.cpv)   : "—", color: "#f59e0b",    icon: DollarSign, lowerIsBetter: true },
-                { label: "Conversões",   value: fNum(t.conversas),                      color: "#10b981",    icon: Zap        },
-                { label: "Investimento", value: fBRL0(t.gasto),                         color: "#8b5cf6",    icon: DollarSign },
-              ];
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.43 }}
-                  className="space-y-4"
-                >
-                  {/* Header */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: YOUTUBE_RED + "20" }}>
-                      <PlayCircle className="w-4 h-4" style={{ color: YOUTUBE_RED }} />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-semibold text-zinc-100">YouTube Ads</h2>
-                      <p className="text-xs text-zinc-500 mt-0.5">Campanhas de vídeo no período</p>
-                    </div>
+            {youtube && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.43 }}
+                className="space-y-4"
+              >
+                {/* Section header — always visible when youtube object exists */}
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: YOUTUBE_RED + "20" }}>
+                    <PlayCircle className="w-4 h-4" style={{ color: YOUTUBE_RED }} />
                   </div>
-
-                  {/* KPI cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                    {ytKpis.map((k, i) => (
-                      <KpiCard key={k.label} label={k.label} value={k.value} icon={k.icon}
-                        color={k.color} lowerIsBetter={k.lowerIsBetter} delay={0.44 + i * 0.05} />
-                    ))}
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">YouTube Ads</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">Campanhas de vídeo no período</p>
                   </div>
+                </div>
 
-                  {/* Campaigns table */}
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-                      <p className="text-xs text-zinc-500">
-                        {(youtube.campaigns || []).length} {(youtube.campaigns || []).length === 1 ? "campanha" : "campanhas"} de vídeo
-                      </p>
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border"
-                        style={{ background: YOUTUBE_RED + "15", borderColor: YOUTUBE_RED + "40", color: YOUTUBE_RED }}>
-                        <PlayCircle className="w-3.5 h-3.5" />
-                        YouTube
+                {/* Error state */}
+                {youtube.error && (
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    <span className="text-base">⚠️</span>
+                    <span><strong>Erro ao buscar dados YouTube:</strong> {youtube.error}</span>
+                  </div>
+                )}
+
+                {/* No video campaigns in period */}
+                {!youtube.error && youtube.configured && !youtube.hasData && (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                    <PlayCircle className="w-10 h-10 text-zinc-700" />
+                    <p className="text-sm font-medium text-zinc-400">Nenhuma campanha de vídeo no período selecionado</p>
+                    <p className="text-xs text-zinc-600">Crie uma campanha de tipo "Vídeo" no Google Ads para ver os dados aqui</p>
+                  </div>
+                )}
+
+                {/* Not configured */}
+                {!youtube.error && youtube.configured === false && (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3 bg-zinc-900 border border-zinc-800 rounded-2xl">
+                    <PlayCircle className="w-10 h-10 text-zinc-700" />
+                    <p className="text-sm font-medium text-zinc-400">Google Ads não configurado para este cliente</p>
+                  </div>
+                )}
+
+                {/* Has data — KPIs + table */}
+                {youtube.hasData && (() => {
+                  const yt = youtube.totals || {};
+                  const ytKpis = [
+                    { label: "Views",        value: fNum(yt.views),                           color: YOUTUBE_RED,  icon: PlayCircle },
+                    { label: "View Rate",    value: fPct(yt.viewRate),                        color: "#f97316",    icon: Eye        },
+                    { label: "CPV Médio",    value: yt.cpv != null ? fBRL(yt.cpv) : "—",     color: "#f59e0b",    icon: DollarSign, lowerIsBetter: true },
+                    { label: "Conversões",   value: fNum(yt.conversas),                       color: "#10b981",    icon: Zap        },
+                    { label: "Investimento", value: fBRL0(yt.gasto),                          color: "#8b5cf6",    icon: DollarSign },
+                  ];
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                        {ytKpis.map((k, i) => (
+                          <KpiCard key={k.label} label={k.label} value={k.value} icon={k.icon}
+                            color={k.color} lowerIsBetter={k.lowerIsBetter} delay={0.44 + i * 0.05} />
+                        ))}
                       </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-zinc-800">
-                            {["Campanha", "Status", "Views", "View Rate", "CPV", "Cliques", "Conv.", "Investimento"].map((h) => (
-                              <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(youtube.campaigns || []).map((c, i) => (
-                            <motion.tr
-                              key={`${c.name}-${i}`}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.5 + i * 0.04 }}
-                              className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                            >
-                              <td className="px-4 py-3 text-zinc-200 font-medium max-w-[220px]">
-                                <span className="flex items-center gap-2">
-                                  <PlayCircle className="w-3.5 h-3.5 shrink-0" style={{ color: YOUTUBE_RED }} />
-                                  <span className="truncate block">{c.name}</span>
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap"><StatusDot status={c.status} /></td>
-                              <td className="px-4 py-3 text-zinc-100 font-bold whitespace-nowrap">{fNum(c.views)}</td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="text-xs font-semibold px-2 py-0.5 rounded-md"
-                                  style={{ background: YOUTUBE_RED + "15", color: YOUTUBE_RED }}>
-                                  {fPct(c.viewRate)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{c.cpv != null ? fBRL(c.cpv) : "—"}</td>
-                              <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fNum(c.cliques)}</td>
-                              <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(c.conversas)}</td>
-                              <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(c.gasto)}</td>
-                            </motion.tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })()}
+
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+                          <p className="text-xs text-zinc-500">
+                            {(youtube.campaigns || []).length} {(youtube.campaigns || []).length === 1 ? "campanha" : "campanhas"} de vídeo
+                          </p>
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border"
+                            style={{ background: YOUTUBE_RED + "15", borderColor: YOUTUBE_RED + "40", color: YOUTUBE_RED }}>
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            YouTube
+                          </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-zinc-800">
+                                {["Campanha", "Status", "Views", "View Rate", "CPV", "Cliques", "Conv.", "Investimento"].map((h) => (
+                                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(youtube.campaigns || []).map((c, i) => (
+                                <motion.tr
+                                  key={`${c.name}-${i}`}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: 0.5 + i * 0.04 }}
+                                  className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                                >
+                                  <td className="px-4 py-3 text-zinc-200 font-medium max-w-[220px]">
+                                    <span className="flex items-center gap-2">
+                                      <PlayCircle className="w-3.5 h-3.5 shrink-0" style={{ color: YOUTUBE_RED }} />
+                                      <span className="truncate block">{c.name}</span>
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap"><StatusDot status={c.status} /></td>
+                                  <td className="px-4 py-3 text-zinc-100 font-bold whitespace-nowrap">{fNum(c.views)}</td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md"
+                                      style={{ background: YOUTUBE_RED + "15", color: YOUTUBE_RED }}>
+                                      {fPct(c.viewRate)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{c.cpv != null ? fBRL(c.cpv) : "—"}</td>
+                                  <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fNum(c.cliques)}</td>
+                                  <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(c.conversas)}</td>
+                                  <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(c.gasto)}</td>
+                                </motion.tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.div>
+            )}
 
             {/* ── TOP ADS (RSA/ETA COPY) ── */}
             {adsData?.hasData && (
