@@ -1861,9 +1861,10 @@ function buildMonthlyReportPage(clientName, clientEmoji, clientColor, { metaData
       kpiCard("🧭", "Direções",       fNum(gm.direcoes),   ""),
     ];
 
+    const ratingNum  = Number(rv?.averageRating) || 0;
     const reviewBlock = rv
       ? `<div class="review-box">
-           <div class="review-rating">${rv.averageRating?.toFixed(1) || "—"} <span style="color:#f59e0b;font-size:18px;">${starRating(rv.averageRating)}</span></div>
+           <div class="review-rating">${ratingNum > 0 ? ratingNum.toFixed(1) : "—"} <span style="color:#f59e0b;font-size:18px;">${starRating(ratingNum)}</span></div>
            <div class="review-count">${fNum(rv.totalReviewCount)} avaliações no Google</div>
          </div>`
       : "";
@@ -2012,30 +2013,20 @@ app.get("/api/report/monthly", async (req, res) => {
     ticket_medio:      clientData?.ticket_medio      || 0,
   };
 
-  // ── 1. META ADS ──────────────────────────────────────────────────────────────
-  let metaData = null;
-  try {
-    const response = await axios.get(
-      `${META_BASE}/${clientConfig.accountId}/insights`,
-      {
-        params: {
-          fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
-          date_preset: DATE_PRESETS.monthly || "last_30d",
-          level: "account",
-          access_token: clientConfig.token,
-        },
-        timeout: 15000,
-      }
-    );
-    const raw = response.data.data?.[0] || {};
-    const m = computeMetrics(raw);
-
-    // campaigns breakdown
-    let campaigns = [];
+  // ── Fetch all platforms in PARALLEL ─────────────────────────────────────────
+  const fetchMeta = async () => {
     try {
-      const campRes = await axios.get(
-        `${META_BASE}/${clientConfig.accountId}/insights`,
-        {
+      const [insRes, campRes] = await Promise.all([
+        axios.get(`${META_BASE}/${clientConfig.accountId}/insights`, {
+          params: {
+            fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
+            date_preset: DATE_PRESETS.monthly || "last_30d",
+            level: "account",
+            access_token: clientConfig.token,
+          },
+          timeout: 20000,
+        }),
+        axios.get(`${META_BASE}/${clientConfig.accountId}/insights`, {
           params: {
             fields: "campaign_name,spend,impressions,clicks,actions",
             date_preset: DATE_PRESETS.monthly || "last_30d",
@@ -2043,15 +2034,19 @@ app.get("/api/report/monthly", async (req, res) => {
             access_token: clientConfig.token,
             limit: 10,
           },
-          timeout: 15000,
-        }
-      );
-      campaigns = (campRes.data.data || []).map((c) => {
+          timeout: 20000,
+        }).catch(() => ({ data: { data: [] } })),
+      ]);
+
+      const raw = insRes.data.data?.[0] || {};
+      const m   = computeMetrics(raw);
+
+      const campaigns = (campRes.data.data || []).map((c) => {
         const conv = (c.actions || [])
-          .filter((a) => ["onsite_conversion.messaging_conversation_started_7d","lead","offsite_conversion.fb_pixel_lead"].includes(a.action_type))
+          .filter((a) => ["onsite_conversion.messaging_conversation_started_7d", "lead", "offsite_conversion.fb_pixel_lead"].includes(a.action_type))
           .reduce((s, a) => s + Number(a.value || 0), 0);
         return {
-          name:       c.campaign_name,
+          name:       c.campaign_name || "—",
           gasto:      Number(c.spend || 0),
           impressoes: Number(c.impressions || 0),
           cliques:    Number(c.clicks || 0),
@@ -2059,109 +2054,117 @@ app.get("/api/report/monthly", async (req, res) => {
           cpl:        conv > 0 ? Number(c.spend || 0) / conv : null,
         };
       }).sort((a, b) => b.gasto - a.gasto).slice(0, 8);
-    } catch (_) { /* best-effort */ }
 
-    const prev = getPreviousPeriodMetrics(clientId, "monthly");
-    const delta = prev ? {
-      gasto:     prev.gasto     > 0 ? ((m.gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
-      conversas: prev.conversas > 0 ? ((m.conversas - prev.conversas) / prev.conversas) * 100 : null,
-      cpl:       prev.cpl       > 0 ? ((m.cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
-      cpm:       prev.cpm       > 0 ? ((m.cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
-    } : {};
+      const prev  = getPreviousPeriodMetrics(clientId, "monthly");
+      const delta = prev ? {
+        gasto:     prev.gasto     > 0 ? ((m.gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
+        conversas: prev.conversas > 0 ? ((m.conversas - prev.conversas) / prev.conversas) * 100 : null,
+        cpl:       prev.cpl       > 0 ? ((m.cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
+        cpm:       prev.cpm       > 0 ? ((m.cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
+      } : {};
 
-    metaData = { metrics: m, delta, campaigns };
-  } catch (err) {
-    console.error("[report/monthly] meta:", err.response?.data?.error?.message || err.message);
-  }
+      return { metrics: m, delta, campaigns };
+    } catch (err) {
+      console.error("[report/monthly] meta:", err.response?.data?.error?.message || err.message);
+      return null;
+    }
+  };
 
-  // ── 2. GOOGLE ADS ────────────────────────────────────────────────────────────
-  let googleData = null;
-  if (clientConfig.google_ads_customer_id && process.env.GOOGLE_ADS_CLIENT_ID) {
+  const fetchGoogle = async () => {
+    if (!clientConfig.google_ads_customer_id || !process.env.GOOGLE_ADS_CLIENT_ID) return null;
     try {
-      const gaql = `
-        SELECT metrics.cost_micros, metrics.impressions, metrics.clicks,
-               metrics.conversions, metrics.ctr, metrics.average_cpc,
-               metrics.average_cpm, metrics.search_impression_share
-        FROM customer
-        WHERE segments.date DURING LAST_MONTH
-      `;
-      const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
-      if (rows && rows.length > 0) {
-        const gm = computeGoogleMetrics(rows);
-        const roas = targets.ticket_medio > 0 && gm.gasto > 0
-          ? (gm.conversas * targets.ticket_medio) / gm.gasto : null;
+      const [rows, campRows] = await Promise.all([
+        queryGoogleAds(clientConfig.google_ads_customer_id, `
+          SELECT metrics.cost_micros, metrics.impressions, metrics.clicks,
+                 metrics.conversions, metrics.ctr, metrics.average_cpc,
+                 metrics.average_cpm, metrics.search_impression_share
+          FROM customer WHERE segments.date DURING LAST_MONTH
+        `),
+        queryGoogleAds(clientConfig.google_ads_customer_id, `
+          SELECT campaign.name, metrics.cost_micros, metrics.impressions,
+                 metrics.clicks, metrics.conversions, metrics.ctr
+          FROM campaign
+          WHERE segments.date DURING LAST_MONTH AND metrics.impressions > 0
+          ORDER BY metrics.cost_micros DESC LIMIT 8
+        `).catch(() => []),
+      ]);
 
-        // campaigns
-        let gCampaigns = [];
-        try {
-          const campGaql = `
-            SELECT campaign.name, metrics.cost_micros, metrics.impressions,
-                   metrics.clicks, metrics.conversions, metrics.ctr
-            FROM campaign
-            WHERE segments.date DURING LAST_MONTH
-              AND metrics.impressions > 0
-            ORDER BY metrics.cost_micros DESC
-            LIMIT 8
-          `;
-          const campRows = await queryGoogleAds(clientConfig.google_ads_customer_id, campGaql);
-          gCampaigns = (campRows || []).map((r) => {
-            const cm = r.metrics || {};
-            const cc = r.campaign || {};
-            const g  = Number(cm.costMicros ?? cm.cost_micros ?? 0) / 1_000_000;
-            const c  = Number(cm.conversions ?? 0);
-            return {
-              name:       cc.name || "—",
-              gasto:      g,
-              impressoes: Number(cm.impressions ?? 0),
-              cliques:    Number(cm.clicks ?? 0),
-              conversas:  c,
-              cpl:        c > 0 ? g / c : null,
-              ctr:        Number(cm.ctr ?? 0) * 100,
-            };
-          });
-        } catch (_) { /* best-effort */ }
+      if (!rows || rows.length === 0) return null;
 
-        googleData = { metrics: { ...gm, roas }, campaigns: gCampaigns };
-      }
+      const gm   = computeGoogleMetrics(rows);
+      const roas = targets.ticket_medio > 0 && gm.gasto > 0
+        ? (gm.conversas * targets.ticket_medio) / gm.gasto : null;
+
+      const campaigns = (campRows || []).map((r) => {
+        const cm = r.metrics  || {};
+        const cc = r.campaign || {};
+        const g  = Number(cm.costMicros ?? cm.cost_micros ?? 0) / 1_000_000;
+        const c  = Number(cm.conversions ?? 0);
+        return {
+          name:       cc.name || "—",
+          gasto:      g,
+          impressoes: Number(cm.impressions ?? 0),
+          cliques:    Number(cm.clicks ?? 0),
+          conversas:  c,
+          cpl:        c > 0 ? g / c : null,
+          ctr:        Number(cm.ctr ?? 0) * 100,
+        };
+      });
+
+      return { metrics: { ...gm, roas }, campaigns };
     } catch (err) {
       console.error("[report/monthly] google:", err.message);
+      return null;
     }
-  }
+  };
 
-  // ── 3. GOOGLE MEU NEGÓCIO ────────────────────────────────────────────────────
-  let gmbData = null;
-  if (clientConfig.gmb_location_id && process.env.GMB_CLIENT_ID) {
+  const fetchGmb = async () => {
+    if (!clientConfig.gmb_location_id || !process.env.GMB_CLIENT_ID) return null;
     try {
-      const freshClients = loadClients();
+      const freshClients  = loadClients();
       const freshLocation = freshClients[clientId]?.gmb_location_id || clientConfig.gmb_location_id;
       const { startDate, endDate } = getGmbDateRange("monthly");
-      const series   = await getGmbInsights(freshLocation, startDate, endDate);
+
+      const [series, rvData] = await Promise.all([
+        getGmbInsights(freshLocation, startDate, endDate),
+        getGmbReviews(freshLocation, 5).catch(() => null),
+      ]);
+
       const gmbMetrics = computeGmbMetrics(series);
+      const reviews    = rvData
+        ? { averageRating: Number(rvData.averageRating) || 0, totalReviewCount: rvData.totalReviewCount || 0 }
+        : null;
 
-      let reviews = null;
-      try {
-        const rv = await getGmbReviews(freshLocation, 5);
-        reviews = { averageRating: rv.averageRating, totalReviewCount: rv.totalReviewCount };
-      } catch (_) { /* best-effort */ }
-
-      gmbData = { metrics: gmbMetrics, reviews };
+      return { metrics: gmbMetrics, reviews };
     } catch (err) {
       console.error("[report/monthly] gmb:", err.message);
+      return null;
     }
-  }
+  };
+
+  // Run all 3 in parallel
+  const [metaData, googleData, gmbData] = await Promise.all([
+    fetchMeta(),
+    fetchGoogle(),
+    fetchGmb(),
+  ]);
 
   if (!metaData && !googleData && !gmbData) {
-    return res.status(500).json({ error: "Nenhuma plataforma retornou dados. Verifique as credenciais." });
+    return res.status(500).json({ error: "Nenhuma plataforma retornou dados. Verifique as credenciais e tente novamente." });
   }
 
-  const html = buildMonthlyReportPage(
-    clientConfig.name,
-    clientConfig.emoji || "🏢",
-    clientConfig.color || "#7c3aed",
-    { metaData, googleData, gmbData, targets }
-  );
-
-  res.json({ html });
+  try {
+    const html = buildMonthlyReportPage(
+      clientConfig.name,
+      clientConfig.emoji || "🏢",
+      clientConfig.color || "#7c3aed",
+      { metaData, googleData, gmbData, targets }
+    );
+    res.json({ html });
+  } catch (buildErr) {
+    console.error("[report/monthly] buildMonthlyReportPage threw:", buildErr);
+    res.status(500).json({ error: `Erro ao montar o relatório: ${buildErr.message}` });
+  }
 });
 
 // ─── SERVE REACT APP ──────────────────────────────────────────────────────────

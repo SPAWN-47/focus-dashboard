@@ -540,8 +540,17 @@ export default function DashboardPage() {
       const blob = new Blob([json.html], { type: "text/html;charset=utf-8" });
       const url  = URL.createObjectURL(blob);
       const win  = window.open(url, "_blank");
-      if (!win) alert("Permita pop-ups para abrir o relatório.");
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      if (!win) {
+        // Popup blocked — fallback: download as .html file
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `relatorio-mensal.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      // Keep URL alive for 5 minutes so user has time to print
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
     } catch (err) {
       alert(`Não foi possível gerar o relatório:\n${err.message}`);
     } finally {
