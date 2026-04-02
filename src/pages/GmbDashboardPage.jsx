@@ -193,8 +193,9 @@ export default function GmbDashboardPage() {
       if (clientId) p.set("clientId", clientId);
       const data = await authFetch(`/api/gmb/reviews?${p}`).then(r => r.json());
       setReviews(data);
-    } catch {
-      // silent — reviews failure shouldn't block insights
+    } catch (err) {
+      console.error("[gmb/reviews fetch]", err);
+      setReviews({ configured: false, reason: "api_error", error: err.message });
     } finally {
       setLoadingReviews(false);
     }
@@ -419,8 +420,35 @@ export default function GmbDashboardPage() {
               </div>
             )}
 
-            {/* ── REVIEWS SECTION — hidden silently when API is unavailable/restricted ── */}
-            {(loadingReviews || (reviews?.configured && reviews?.reason !== "api_unavailable")) && !isApiError && (
+            {/* ── REVIEWS ERROR BANNER — shown when API fails or is pending approval ── */}
+            {!loadingReviews && reviews && !reviews.configured && !isApiError && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm border ${
+                  reviews.reason === "api_unavailable"
+                    ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+                    : "bg-red-500/10 border-red-500/20 text-red-400"
+                }`}
+              >
+                <span className="mt-0.5 shrink-0">
+                  {reviews.reason === "api_unavailable" ? "⏳" : "⚠️"}
+                </span>
+                <div>
+                  <p className="font-semibold">
+                    {reviews.reason === "api_unavailable"
+                      ? "API de Avaliações aguardando liberação"
+                      : "Erro ao carregar avaliações"}
+                  </p>
+                  {reviews.error && (
+                    <p className="text-xs mt-0.5 opacity-75 font-mono break-all">{reviews.error}</p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── REVIEWS SECTION ── */}
+            {(loadingReviews || reviews?.configured) && !isApiError && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -1451,6 +1451,9 @@ app.get("/api/gmb/insights", async (req, res) => {
     // Se é quota exceeded, retorna cache antigo (stale) se existir
     const isQuota = errMsg?.includes("Quota exceeded") || errMsg?.includes("quota");
     if (isQuota) {
+      // Serve stale cache when quota is hit instead of returning empty
+      const stale = getCachedInsights(clientId, cacheKey);
+      if (stale) return res.json({ ...stale, fromStaleCache: true });
       return res.status(429).json({ configured: false, reason: "quota_exceeded", error: "Limite de requisições da API do Google atingido. Tente novamente em alguns minutos." });
     }
     res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
@@ -1499,14 +1502,20 @@ app.get("/api/gmb/reviews", async (req, res) => {
     });
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
-    console.error("[gmb/reviews]", errMsg);
-    // mybusinessreviews.googleapis.com requires special Google approval —
-    // return unavailable (not an error) so the UI hides the section silently.
-    const isRestricted = errMsg?.includes("has not been used") || errMsg?.includes("disabled") || errMsg?.includes("SERVICE_DISABLED");
+    const statusCode = err.response?.status;
+    console.error("[gmb/reviews]", statusCode, errMsg);
+
+    // API still pending Google approval (mybusinessreviews.googleapis.com requires special access)
+    const isRestricted = errMsg?.includes("has not been used in project")
+      || errMsg?.includes("SERVICE_DISABLED")
+      || errMsg?.includes("API has not been used");
+
     if (isRestricted) {
-      return res.json({ configured: false, reason: "api_unavailable" });
+      return res.json({ configured: false, reason: "api_unavailable", error: errMsg });
     }
-    res.status(500).json({ configured: false, reason: "api_error", error: errMsg });
+
+    // Return the actual error so the UI can show it instead of hiding silently
+    res.json({ configured: false, reason: "api_error", error: errMsg });
   }
 });
 
