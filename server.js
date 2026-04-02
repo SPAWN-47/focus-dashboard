@@ -1481,13 +1481,19 @@ app.get("/api/gmb/reviews", async (req, res) => {
     return res.json({ configured: false, reason: "no_location" });
   }
 
+  // Cache reviews for 30 min — reviews don't change that often and this API
+  // has very low quota on mybusinessaccountmanagement (needed when location ID is bare numeric)
+  const reviewsCacheKey = `gmb_reviews_${clientId}`;
+  const cachedReviews = getCachedInsights(clientId, reviewsCacheKey);
+  if (cachedReviews) return res.json({ ...cachedReviews, fromCache: true });
+
   try {
     const { reviews, averageRating, totalReviewCount } = await getGmbReviews(
       clientConfig.gmb_location_id,
       10
     );
 
-    res.json({
+    const reviewsPayload = {
       configured: true,
       averageRating,
       totalReviewCount,
@@ -1499,7 +1505,10 @@ app.get("/api/gmb/reviews", async (req, res) => {
         date:       r.createTime,
         replyText:  r.reviewReply?.comment || null,
       })),
-    });
+    };
+
+    setCachedInsights(clientId, reviewsCacheKey, reviewsPayload);
+    res.json(reviewsPayload);
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     const statusCode = err.response?.status;
