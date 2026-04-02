@@ -20,7 +20,7 @@ import axios from "axios";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
-import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange } from "./lib/gmb.js";
+import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId } from "./lib/gmb.js";
 
 import {
   checkRateLimit,
@@ -1409,6 +1409,30 @@ app.get("/api/google/keywords", async (req, res) => {
   }
 });
 
+// ─── GMB HELPER: auto-upgrade bare location ID → full path ───────────────────
+// Saves "accounts/xxx/locations/yyy" back to clients.json so future requests
+// never need to call mybusinessaccountmanagement.googleapis.com again.
+
+async function upgradeGmbLocationId(clientId, currentRaw) {
+  // Already a full path — nothing to do
+  if (/^accounts\/\d+\/locations\/\d+$/.test((currentRaw || "").trim())) return;
+
+  try {
+    const { locationName } = await resolveLocationId(currentRaw);
+    if (locationName && locationName !== currentRaw) {
+      const clients = loadClients();
+      if (clients[clientId]) {
+        clients[clientId].gmb_location_id = locationName;
+        saveClients(clients);
+        console.log(`[gmb] Auto-upgraded location ID for ${clientId}: ${currentRaw} → ${locationName}`);
+      }
+    }
+  } catch (e) {
+    // Non-fatal — just log, don't block the request
+    console.warn("[gmb] Could not auto-upgrade location ID:", e.message);
+  }
+}
+
 // ─── GOOGLE BUSINESS PROFILE — INSIGHTS ────────────────────────────────────────
 
 app.get("/api/gmb/insights", async (req, res) => {
@@ -1436,10 +1460,18 @@ app.get("/api/gmb/insights", async (req, res) => {
   const cached = getCachedInsights(clientId, cacheKey);
   if (cached) return res.json(cached);
 
+  // Fire-and-forget: upgrade bare numeric ID to full path in background.
+  // On success, future calls skip mybusinessaccountmanagement entirely.
+  upgradeGmbLocationId(clientId, clientConfig.gmb_location_id);
+
   try {
     const { startDate, endDate } = getGmbDateRange(period);
 
-    const series  = await getGmbInsights(clientConfig.gmb_location_id, startDate, endDate);
+    // Re-read clientConfig in case upgradeGmbLocationId already saved the full path
+    const freshClients = loadClients();
+    const freshLocation = freshClients[clientId]?.gmb_location_id || clientConfig.gmb_location_id;
+
+    const series  = await getGmbInsights(freshLocation, startDate, endDate);
     const metrics = computeGmbMetrics(series);
 
     const payload = { configured: true, period, metrics, startDate, endDate };
@@ -1488,8 +1520,12 @@ app.get("/api/gmb/reviews", async (req, res) => {
   if (cachedReviews) return res.json({ ...cachedReviews, fromCache: true });
 
   try {
+    // Re-read in case upgradeGmbLocationId (triggered by insights) already saved full path
+    const freshClients = loadClients();
+    const freshLocation = freshClients[clientId]?.gmb_location_id || clientConfig.gmb_location_id;
+
     const { reviews, averageRating, totalReviewCount } = await getGmbReviews(
-      clientConfig.gmb_location_id,
+      freshLocation,
       10
     );
 
