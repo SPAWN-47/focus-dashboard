@@ -849,75 +849,49 @@ export default function GoogleDashboardPage() {
                 transition={{ duration: 0.5, delay: 0.48 }}
                 className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
               >
-                <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <h2 className="text-sm font-semibold text-zinc-100">Termos de Pesquisa</h2>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      Palavras-chave que acionaram seus anúncios no período
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Filtrar termos..."
-                      value={kwSearch}
-                      onChange={(e) => setKwSearch(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors w-44"
-                    />
-                  </div>
+                <div className="px-5 py-4 border-b border-zinc-800">
+                  <h2 className="text-sm font-semibold text-zinc-100">Termos de Pesquisa</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Top 10 palavras-chave que acionaram seus anúncios no período
+                  </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-800">
-                        {[
-                          { label: "Termo de Pesquisa" },
-                          { label: "Impressões" },
-                          { label: "Cliques" },
-                          { label: "CTR" },
-                          { label: "CPC" },
-                          { label: "Conv." },
-                          { label: "Gasto" },
-                        ].map((h) => (
-                          <th key={h.label} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">
-                            {h.label}
+                        {["#", "Termo de Pesquisa", "Impressões", "Cliques", "CTR", "CPC", "Conv.", "Gasto"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                            {h}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {(keywords.keywords || [])
-                        .filter((k) => k.termo.toLowerCase().includes(kwSearch.toLowerCase()))
-                        .map((k, i) => (
-                          <motion.tr
-                            key={`${k.termo}-${i}`}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.5 + i * 0.03 }}
-                            className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                          >
-                            <td className="px-4 py-3 text-zinc-200 font-medium max-w-[280px]">
-                              <span className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GOOGLE_BLUE }} />
-                                <span className="truncate block">{k.termo}</span>
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fNum(k.impressoes)}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fNum(k.cliques)}</td>
-                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fPct(k.ctr)}</td>
-                            <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fBRL(k.cpc)}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(k.conversas)}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(k.gasto)}</td>
-                          </motion.tr>
-                        ))}
+                      {(keywords.keywords || []).map((k, i) => (
+                        <motion.tr
+                          key={`${k.termo}-${i}`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.5 + i * 0.04 }}
+                          className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
+                        >
+                          <td className="px-4 py-3 text-zinc-600 text-xs font-mono w-8">{i + 1}</td>
+                          <td className="px-4 py-3 text-zinc-200 font-medium max-w-[260px]">
+                            <span className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GOOGLE_BLUE }} />
+                              <span className="truncate block">{k.termo}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fNum(k.impressoes)}</td>
+                          <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fNum(k.cliques)}</td>
+                          <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fPct(k.ctr)}</td>
+                          <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{fBRL(k.cpc)}</td>
+                          <td className="px-4 py-3 text-zinc-300 font-semibold whitespace-nowrap">{fNum(k.conversas)}</td>
+                          <td className="px-4 py-3 text-zinc-300 font-medium whitespace-nowrap">{fBRL0(k.gasto)}</td>
+                        </motion.tr>
+                      ))}
                     </tbody>
                   </table>
-                  {(keywords.keywords || []).filter((k) => k.termo.toLowerCase().includes(kwSearch.toLowerCase())).length === 0 && (
-                    <div className="px-5 py-8 text-center text-sm text-zinc-600">
-                      Nenhum termo encontrado para "{kwSearch}".
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}

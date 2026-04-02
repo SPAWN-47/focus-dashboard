@@ -1372,7 +1372,7 @@ app.get("/api/google/keywords", async (req, res) => {
       WHERE segments.date DURING ${dateRange}
         AND metrics.impressions > 0
       ORDER BY metrics.clicks DESC
-      LIMIT 50
+      LIMIT 10
     `;
 
     const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
