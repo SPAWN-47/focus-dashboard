@@ -1713,38 +1713,171 @@ app.get("/health", (req, res) => {
 // Returns a print-optimised HTML page. Frontend opens it as a blob URL so the
 // client can print-to-PDF without needing a server-side PDF library.
 
-// Builds a standalone, print-optimised HTML page for the monthly report
-function buildMonthlyReportPage(clientName, clientEmoji, clientColor, metrics, targets, delta) {
-  const now = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-  const m = metrics || {};
-  const t = targets  || {};
-  const d = delta    || {};
+// Builds a standalone, print-optimised HTML page for the monthly report.
+// Receives { metaData, googleData, gmbData, targets } — each section is optional.
+function buildMonthlyReportPage(clientName, clientEmoji, clientColor, { metaData, googleData, gmbData, targets }) {
+  const now  = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  const t    = targets || {};
 
+  // ── helpers ──────────────────────────────────────────────────────────────────
   const fBRL0 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
   const fBRL2 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fNum  = (v) => Math.round(v || 0).toLocaleString("pt-BR");
+  const fPct  = (v) => `${(v || 0).toFixed(2)}%`;
 
-  const deltaHtml = (val, lowerIsBetter = false) => {
+  const dHtml = (val, lower = false) => {
     if (val == null) return "";
-    const good  = lowerIsBetter ? val < 0 : val >= 0;
+    const good  = lower ? val < 0 : val >= 0;
     const color = good ? "#16a34a" : "#dc2626";
-    const sign  = val >= 0 ? "+" : "";
-    return `<span style="font-size:11px;font-weight:700;color:${color};margin-left:6px;">${sign}${val.toFixed(1)}%</span>`;
+    return `<span style="font-size:10px;font-weight:700;color:${color};margin-left:5px;">${val >= 0 ? "+" : ""}${val.toFixed(1)}%</span>`;
   };
 
-  const kpis = [
-    { label: "Investimento", value: fBRL0(m.gasto),                              delta: deltaHtml(d.gasto),             icon: "💰" },
-    { label: "Conversas",    value: String(Math.round(m.conversas || 0)),         delta: deltaHtml(d.conversas),         icon: "💬" },
-    { label: "CPL",          value: m.cpl > 0 ? fBRL2(m.cpl) : "—",             delta: deltaHtml(d.cpl, true),         icon: "🎯" },
-    { label: "CTR",          value: `${(m.ctr || 0).toFixed(2)}%`,               delta: "",                             icon: "👆" },
-    { label: "CPM",          value: fBRL2(m.cpm),                                delta: deltaHtml(d.cpm, true),         icon: "📢" },
-    { label: "Impressões",   value: (m.impressoes || 0).toLocaleString("pt-BR"), delta: "",                             icon: "👁️" },
-  ];
+  const kpiCard = (icon, label, value, delta = "") =>
+    `<div class="kpi-card"><div class="kpi-label">${icon} ${label}</div><div class="kpi-value">${value}${delta}</div></div>`;
 
-  const progressBars = [
-    t.target_spend     > 0 ? { label: "Budget mensal",    value: m.gasto,     target: t.target_spend,     fmt: fBRL0, color: "#7c3aed" } : null,
-    t.target_conversas > 0 ? { label: "Meta de conversas", value: m.conversas, target: t.target_conversas, fmt: (v) => Math.round(v), color: "#059669" } : null,
-  ].filter(Boolean);
+  const progressBar = (label, value, target, fmt, color) => {
+    const pct = Math.min(100, Math.round(((value || 0) / target) * 100));
+    const bc  = pct >= 100 ? "#dc2626" : color;
+    return `<div class="bar-row">
+      <div class="bar-meta"><span>${label}</span><span style="color:${pct >= 100 ? "#dc2626" : "#111827"};">${fmt(value)} / ${fmt(target)} (${pct}%)</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${bc};"></div></div>
+    </div>`;
+  };
 
+  const table = (headers, rows) => `
+    <table class="camp-table">
+      <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>
+    </table>`;
+
+  const sectionDivider = (label, color = clientColor) =>
+    `<div class="section-divider" style="border-color:${color}30;"><span class="section-divider-label" style="background:${color}18;color:${color};">${label}</span></div>`;
+
+  const starRating = (r) => {
+    const STAR_MAP = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
+    const n = typeof r === "string" ? (STAR_MAP[r] || 0) : Math.round(r || 0);
+    return "★".repeat(n) + "☆".repeat(5 - n);
+  };
+
+  // ── META ADS SECTION ─────────────────────────────────────────────────────────
+  let metaSection = "";
+  if (metaData) {
+    const m = metaData.metrics || {};
+    const d = metaData.delta   || {};
+    const roas = t.ticket_medio > 0 && m.gasto > 0 ? (m.conversas * t.ticket_medio) / m.gasto : null;
+
+    const kpis = [
+      kpiCard("💰", "Investimento",   fBRL0(m.gasto),                            dHtml(d.gasto)),
+      kpiCard("💬", "Conversas",      fNum(m.conversas),                          dHtml(d.conversas)),
+      kpiCard("🎯", "CPL",            m.cpl > 0 ? fBRL2(m.cpl) : "—",           dHtml(d.cpl, true)),
+      kpiCard("👆", "CTR",            fPct(m.ctr),                                ""),
+      kpiCard("📢", "CPM",            fBRL2(m.cpm),                               dHtml(d.cpm, true)),
+      kpiCard("👁️", "Impressões",     fNum(m.impressoes),                         ""),
+      kpiCard("🖱️", "Cliques",        fNum(m.cliques),                            ""),
+      kpiCard("👥", "Alcance",        fNum(m.alcance),                            ""),
+      kpiCard("💵", "CPC",            m.cliques > 0 ? fBRL2(m.cpc) : "—",       ""),
+      ...(roas !== null ? [kpiCard("📈", "ROAS", `${roas.toFixed(2)}x`, "")] : []),
+    ];
+
+    const progBars = [
+      t.target_spend     > 0 ? progressBar("Budget mensal",    m.gasto,     t.target_spend,     fBRL0, "#7c3aed") : "",
+      t.target_conversas > 0 ? progressBar("Meta de conversas", m.conversas, t.target_conversas, fNum,  "#059669") : "",
+    ].filter(Boolean).join("");
+
+    const campTable = metaData.campaigns && metaData.campaigns.length > 0
+      ? table(
+          ["Campanha", "Investimento", "Impressões", "Cliques", "Conversas", "CPL"],
+          metaData.campaigns.map((c) => [
+            `<span style="font-weight:600;">${c.name}</span>`,
+            fBRL0(c.gasto), fNum(c.impressoes), fNum(c.cliques),
+            fNum(c.conversas),
+            c.cpl != null ? fBRL2(c.cpl) : "—",
+          ])
+        )
+      : "";
+
+    metaSection = `
+    ${sectionDivider("📘 Meta Ads — Facebook & Instagram", "#1877f2")}
+    <div class="section">
+      <div class="section-label">KPIs Meta Ads</div>
+      <div class="kpi-grid kpi-grid-5">${kpis.join("")}</div>
+    </div>
+    ${progBars ? `<div class="section" style="padding-top:0;"><div class="section-label">Metas</div>${progBars}</div>` : ""}
+    ${campTable ? `<div class="section" style="padding-top:0;"><div class="section-label">Top campanhas</div>${campTable}</div>` : ""}`;
+  }
+
+  // ── GOOGLE ADS SECTION ───────────────────────────────────────────────────────
+  let googleSection = "";
+  if (googleData) {
+    const gm = googleData.metrics || {};
+
+    const gKpis = [
+      kpiCard("💰", "Investimento",      fBRL0(gm.gasto),                                   ""),
+      kpiCard("💬", "Conversões",        fNum(gm.conversas),                                 ""),
+      kpiCard("🎯", "CPL",               gm.cpl != null ? fBRL2(gm.cpl) : "—",             ""),
+      kpiCard("👆", "CTR",               fPct(gm.ctr),                                       ""),
+      kpiCard("📢", "CPM",               fBRL2(gm.cpm),                                      ""),
+      kpiCard("👁️", "Impressões",        fNum(gm.impressoes),                                ""),
+      kpiCard("🖱️", "Cliques",           fNum(gm.cliques),                                   ""),
+      kpiCard("💵", "CPC",               gm.cliques > 0 ? fBRL2(gm.cpc) : "—",             ""),
+      ...(gm.roas != null ? [kpiCard("📈", "ROAS", `${gm.roas.toFixed(2)}x`, "")] : []),
+      ...(gm.impressionShare != null ? [kpiCard("🔍", "Imp. Share", `${(gm.impressionShare * 100).toFixed(1)}%`, "")] : []),
+    ];
+
+    const gCampTable = googleData.campaigns && googleData.campaigns.length > 0
+      ? table(
+          ["Campanha", "Investimento", "Impressões", "Cliques", "Conversões", "CPL", "CTR"],
+          googleData.campaigns.map((c) => [
+            `<span style="font-weight:600;">${c.name}</span>`,
+            fBRL0(c.gasto), fNum(c.impressoes), fNum(c.cliques),
+            fNum(c.conversas),
+            c.cpl != null ? fBRL2(c.cpl) : "—",
+            fPct(c.ctr || 0),
+          ])
+        )
+      : "";
+
+    googleSection = `
+    ${sectionDivider("🔵 Google Ads", "#4285f4")}
+    <div class="section">
+      <div class="section-label">KPIs Google Ads</div>
+      <div class="kpi-grid kpi-grid-5">${gKpis.join("")}</div>
+    </div>
+    ${gCampTable ? `<div class="section" style="padding-top:0;"><div class="section-label">Top campanhas</div>${gCampTable}</div>` : ""}`;
+  }
+
+  // ── GMB SECTION ──────────────────────────────────────────────────────────────
+  let gmbSection = "";
+  if (gmbData) {
+    const gm = gmbData.metrics || {};
+    const rv = gmbData.reviews;
+
+    const gmbKpis = [
+      kpiCard("👁️", "Impressões",     fNum(gm.impressoes), ""),
+      kpiCard("🔍", "Buscas",         fNum(gm.buscas),     ""),
+      kpiCard("🗺️", "Mapas",         fNum(gm.mapas),      ""),
+      kpiCard("📞", "Ligações",       fNum(gm.ligacoes),   ""),
+      kpiCard("🌐", "Cliques site",   fNum(gm.cliquessite),""),
+      kpiCard("🧭", "Direções",       fNum(gm.direcoes),   ""),
+    ];
+
+    const reviewBlock = rv
+      ? `<div class="review-box">
+           <div class="review-rating">${rv.averageRating?.toFixed(1) || "—"} <span style="color:#f59e0b;font-size:18px;">${starRating(rv.averageRating)}</span></div>
+           <div class="review-count">${fNum(rv.totalReviewCount)} avaliações no Google</div>
+         </div>`
+      : "";
+
+    gmbSection = `
+    ${sectionDivider("📍 Google Meu Negócio", "#34a853")}
+    <div class="section">
+      <div class="section-label">Presença local</div>
+      <div class="kpi-grid kpi-grid-3">${gmbKpis.join("")}</div>
+      ${reviewBlock}
+    </div>`;
+  }
+
+  // ── HTML ──────────────────────────────────────────────────────────────────────
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1753,55 +1886,77 @@ function buildMonthlyReportPage(clientName, clientEmoji, clientColor, metrics, t
   <title>Relatório Mensal · ${clientName}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f5; color: #111827; }
-    .page { max-width: 760px; margin: 32px auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4e7; }
-    .header { background: #09090b; padding: 28px 32px; display: flex; justify-content: space-between; align-items: center; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f0f2; color: #111827; }
+    .page { max-width: 820px; margin: 28px auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4e7; }
+    /* ── header ── */
+    .header { background: #09090b; padding: 26px 32px; display: flex; justify-content: space-between; align-items: center; }
     .header-left { display: flex; align-items: center; gap: 14px; }
-    .header-emoji { font-size: 32px; line-height: 1; }
-    .header-title { color: #fff; font-size: 20px; font-weight: 700; }
-    .header-sub { color: #a1a1aa; font-size: 12px; margin-top: 3px; }
+    .header-emoji { font-size: 30px; }
+    .header-title { color: #fff; font-size: 19px; font-weight: 700; }
+    .header-sub { color: #a1a1aa; font-size: 11px; margin-top: 2px; }
     .header-date { color: #71717a; font-size: 11px; display: flex; align-items: center; gap: 6px; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: ${clientColor}; display: inline-block; }
-    .section { padding: 28px 32px; }
-    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #71717a; margin-bottom: 16px; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .kpi-card { background: #f9fafb; border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; }
-    .kpi-label { font-size: 11px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
-    .kpi-value { font-size: 22px; font-weight: 800; color: #09090b; display: flex; align-items: baseline; gap: 4px; }
-    .kpi-icon { font-size: 14px; }
-    .bar-row { margin-bottom: 14px; }
-    .bar-meta { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-    .bar-track { height: 7px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    /* ── sections ── */
+    .section { padding: 24px 32px; }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; margin-bottom: 14px; }
+    .section-divider { border-top: 2px solid #e5e7eb; margin: 0 32px; padding: 16px 0 4px; }
+    .section-divider-label { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+    /* ── kpi grid ── */
+    .kpi-grid { display: grid; gap: 10px; }
+    .kpi-grid-5 { grid-template-columns: repeat(5, 1fr); }
+    .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .kpi-card { background: #f9fafb; border: 1px solid #e4e4e7; border-radius: 10px; padding: 13px 14px; }
+    .kpi-label { font-size: 10px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .kpi-value { font-size: 18px; font-weight: 800; color: #09090b; display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px; }
+    /* ── progress bars ── */
+    .bar-row { margin-bottom: 12px; }
+    .bar-meta { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; margin-bottom: 5px; color: #374151; }
+    .bar-track { height: 6px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 999px; }
-    .footer { background: #f9fafb; border-top: 1px solid #e4e4e7; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
+    /* ── campaign table ── */
+    .camp-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .camp-table th { text-align: left; padding: 7px 10px; background: #f3f4f6; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; border-bottom: 1px solid #e5e7eb; }
+    .camp-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+    .camp-table tr:last-child td { border-bottom: none; }
+    .camp-table tr:hover td { background: #f9fafb; }
+    /* ── reviews ── */
+    .review-box { margin-top: 14px; padding: 14px 18px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; display: flex; align-items: center; gap: 16px; }
+    .review-rating { font-size: 26px; font-weight: 800; color: #09090b; }
+    .review-count { font-size: 12px; color: #6b7280; }
+    /* ── footer ── */
+    .footer { background: #f9fafb; border-top: 1px solid #e4e4e7; padding: 18px 32px; display: flex; justify-content: space-between; align-items: center; }
     .footer-brand { font-size: 12px; color: #a1a1aa; }
     .footer-brand strong { color: #7c3aed; }
-    .print-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: ${clientColor}; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .print-btn:hover { opacity: .9; }
-    .print-bar { background: #09090b; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 0; }
-    .print-bar-text { color: #a1a1aa; font-size: 12px; }
+    /* ── print bar ── */
+    .print-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; background: ${clientColor}; color: #fff; border: none; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .print-btn:hover { opacity: .88; }
+    .print-bar { background: #09090b; padding: 11px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .print-bar-text { color: #a1a1aa; font-size: 11px; }
+    /* ── responsive ── */
+    @media (max-width: 680px) {
+      .section { padding: 18px 16px; }
+      .section-divider { margin: 0 16px; }
+      .header { padding: 18px 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
+      .kpi-grid-5 { grid-template-columns: repeat(2, 1fr); }
+      .kpi-grid-3 { grid-template-columns: repeat(2, 1fr); }
+      .footer { flex-direction: column; gap: 10px; }
+      .print-bar { padding: 11px 16px; }
+    }
+    /* ── print ── */
     @media print {
       body { background: #fff; }
-      .page { margin: 0; border: none; border-radius: 0; box-shadow: none; }
+      .page { margin: 0; border: none; border-radius: 0; box-shadow: none; max-width: 100%; }
       .print-bar { display: none !important; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 600px) {
-      .section { padding: 20px 16px; }
-      .header { padding: 20px 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-      .footer { flex-direction: column; gap: 12px; }
-      .print-bar { padding: 12px 16px; }
+      .kpi-grid-5 { grid-template-columns: repeat(5, 1fr); }
+      .kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+      .camp-table { page-break-inside: avoid; }
     }
   </style>
 </head>
 <body>
-  <!-- Print bar -->
   <div class="print-bar">
-    <span class="print-bar-text">Relatório Mensal · ${clientName}</span>
-    <button class="print-btn" onclick="window.print()">
-      🖨️ Salvar como PDF
-    </button>
+    <span class="print-bar-text">Relatório Mensal · ${clientName} · ${now}</span>
+    <button class="print-btn" onclick="window.print()">🖨️ Salvar como PDF</button>
   </div>
 
   <div class="page">
@@ -1814,43 +1969,12 @@ function buildMonthlyReportPage(clientName, clientEmoji, clientColor, metrics, t
           <div class="header-sub">Relatório de Performance · Mensal</div>
         </div>
       </div>
-      <div class="header-date">
-        <span class="dot"></span>
-        ${now}
-      </div>
+      <div class="header-date"><span class="dot"></span>${now}</div>
     </div>
 
-    <!-- KPIs -->
-    <div class="section">
-      <div class="section-label">Métricas do período</div>
-      <div class="kpi-grid">
-        ${kpis.map((k) => `
-          <div class="kpi-card">
-            <div class="kpi-label">${k.icon} ${k.label}</div>
-            <div class="kpi-value">${k.value}${k.delta}</div>
-          </div>`).join("")}
-      </div>
-    </div>
-
-    ${progressBars.length > 0 ? `
-    <!-- Metas -->
-    <div class="section" style="padding-top:0;">
-      <div class="section-label">Acompanhamento de metas</div>
-      ${progressBars.map((bar) => {
-        const pct      = Math.min(100, Math.round((bar.value / bar.target) * 100));
-        const barColor = pct >= 100 ? "#dc2626" : bar.color;
-        return `
-        <div class="bar-row">
-          <div class="bar-meta">
-            <span style="color:#374151;">${bar.label}</span>
-            <span style="color:${pct >= 100 ? "#dc2626" : "#111827"};">${bar.fmt(bar.value)} / ${bar.fmt(bar.target)} (${pct}%)</span>
-          </div>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${pct}%;background:${barColor};"></div>
-          </div>
-        </div>`;
-      }).join("")}
-    </div>` : ""}
+    ${metaSection}
+    ${googleSection}
+    ${gmbSection}
 
     <!-- Footer -->
     <div class="footer">
@@ -1872,7 +1996,6 @@ app.get("/api/report/monthly", async (req, res) => {
 
   if (!clientId) return res.status(400).json({ error: "Cliente não especificado" });
 
-  // Clients can only export their own data
   if (user.role === "client" && user.clientId !== clientId) {
     return res.status(403).json({ error: "Acesso negado" });
   }
@@ -1881,8 +2004,17 @@ app.get("/api/report/monthly", async (req, res) => {
   const clientConfig = clients[clientId];
   if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
 
+  const clientData = getClient(clientId);
+  const targets = {
+    target_spend:      clientData?.target_spend      || 0,
+    target_conversas:  clientData?.target_conversas  || 0,
+    target_cpl_max:    clientData?.target_cpl_max    || 0,
+    ticket_medio:      clientData?.ticket_medio      || 0,
+  };
+
+  // ── 1. META ADS ──────────────────────────────────────────────────────────────
+  let metaData = null;
   try {
-    // Fetch monthly Meta Ads data
     const response = await axios.get(
       `${META_BASE}/${clientConfig.accountId}/insights`,
       {
@@ -1895,38 +2027,141 @@ app.get("/api/report/monthly", async (req, res) => {
         timeout: 15000,
       }
     );
-
     const raw = response.data.data?.[0] || {};
-    const { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm } = computeMetrics(raw);
-    const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm };
+    const m = computeMetrics(raw);
 
-    const clientData = getClient(clientId);
-    const targets = {
-      target_spend:    clientData?.target_spend    || 0,
-      target_conversas: clientData?.target_conversas || 0,
-    };
+    // campaigns breakdown
+    let campaigns = [];
+    try {
+      const campRes = await axios.get(
+        `${META_BASE}/${clientConfig.accountId}/insights`,
+        {
+          params: {
+            fields: "campaign_name,spend,impressions,clicks,actions",
+            date_preset: DATE_PRESETS.monthly || "last_30d",
+            level: "campaign",
+            access_token: clientConfig.token,
+            limit: 10,
+          },
+          timeout: 15000,
+        }
+      );
+      campaigns = (campRes.data.data || []).map((c) => {
+        const conv = (c.actions || [])
+          .filter((a) => ["onsite_conversion.messaging_conversation_started_7d","lead","offsite_conversion.fb_pixel_lead"].includes(a.action_type))
+          .reduce((s, a) => s + Number(a.value || 0), 0);
+        return {
+          name:       c.campaign_name,
+          gasto:      Number(c.spend || 0),
+          impressoes: Number(c.impressions || 0),
+          cliques:    Number(c.clicks || 0),
+          conversas:  conv,
+          cpl:        conv > 0 ? Number(c.spend || 0) / conv : null,
+        };
+      }).sort((a, b) => b.gasto - a.gasto).slice(0, 8);
+    } catch (_) { /* best-effort */ }
 
     const prev = getPreviousPeriodMetrics(clientId, "monthly");
     const delta = prev ? {
-      gasto:     prev.gasto     > 0 ? ((gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
-      conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
-      cpl:       prev.cpl       > 0 ? ((cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
-      cpm:       prev.cpm       > 0 ? ((cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
+      gasto:     prev.gasto     > 0 ? ((m.gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
+      conversas: prev.conversas > 0 ? ((m.conversas - prev.conversas) / prev.conversas) * 100 : null,
+      cpl:       prev.cpl       > 0 ? ((m.cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
+      cpm:       prev.cpm       > 0 ? ((m.cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
     } : {};
 
-    const html = buildMonthlyReportPage(
-      clientConfig.name,
-      clientConfig.emoji || "🏢",
-      clientConfig.color || "#7c3aed",
-      metrics, targets, delta
-    );
-
-    res.json({ html });
+    metaData = { metrics: m, delta, campaigns };
   } catch (err) {
-    const metaErr = err.response?.data?.error?.message || err.message;
-    console.error("[report/monthly]", metaErr);
-    res.status(500).json({ error: metaErr });
+    console.error("[report/monthly] meta:", err.response?.data?.error?.message || err.message);
   }
+
+  // ── 2. GOOGLE ADS ────────────────────────────────────────────────────────────
+  let googleData = null;
+  if (clientConfig.google_ads_customer_id && process.env.GOOGLE_ADS_CLIENT_ID) {
+    try {
+      const gaql = `
+        SELECT metrics.cost_micros, metrics.impressions, metrics.clicks,
+               metrics.conversions, metrics.ctr, metrics.average_cpc,
+               metrics.average_cpm, metrics.search_impression_share
+        FROM customer
+        WHERE segments.date DURING LAST_MONTH
+      `;
+      const rows = await queryGoogleAds(clientConfig.google_ads_customer_id, gaql);
+      if (rows && rows.length > 0) {
+        const gm = computeGoogleMetrics(rows);
+        const roas = targets.ticket_medio > 0 && gm.gasto > 0
+          ? (gm.conversas * targets.ticket_medio) / gm.gasto : null;
+
+        // campaigns
+        let gCampaigns = [];
+        try {
+          const campGaql = `
+            SELECT campaign.name, metrics.cost_micros, metrics.impressions,
+                   metrics.clicks, metrics.conversions, metrics.ctr
+            FROM campaign
+            WHERE segments.date DURING LAST_MONTH
+              AND metrics.impressions > 0
+            ORDER BY metrics.cost_micros DESC
+            LIMIT 8
+          `;
+          const campRows = await queryGoogleAds(clientConfig.google_ads_customer_id, campGaql);
+          gCampaigns = (campRows || []).map((r) => {
+            const cm = r.metrics || {};
+            const cc = r.campaign || {};
+            const g  = Number(cm.costMicros ?? cm.cost_micros ?? 0) / 1_000_000;
+            const c  = Number(cm.conversions ?? 0);
+            return {
+              name:       cc.name || "—",
+              gasto:      g,
+              impressoes: Number(cm.impressions ?? 0),
+              cliques:    Number(cm.clicks ?? 0),
+              conversas:  c,
+              cpl:        c > 0 ? g / c : null,
+              ctr:        Number(cm.ctr ?? 0) * 100,
+            };
+          });
+        } catch (_) { /* best-effort */ }
+
+        googleData = { metrics: { ...gm, roas }, campaigns: gCampaigns };
+      }
+    } catch (err) {
+      console.error("[report/monthly] google:", err.message);
+    }
+  }
+
+  // ── 3. GOOGLE MEU NEGÓCIO ────────────────────────────────────────────────────
+  let gmbData = null;
+  if (clientConfig.gmb_location_id && process.env.GMB_CLIENT_ID) {
+    try {
+      const freshClients = loadClients();
+      const freshLocation = freshClients[clientId]?.gmb_location_id || clientConfig.gmb_location_id;
+      const { startDate, endDate } = getGmbDateRange("monthly");
+      const series   = await getGmbInsights(freshLocation, startDate, endDate);
+      const gmbMetrics = computeGmbMetrics(series);
+
+      let reviews = null;
+      try {
+        const rv = await getGmbReviews(freshLocation, 5);
+        reviews = { averageRating: rv.averageRating, totalReviewCount: rv.totalReviewCount };
+      } catch (_) { /* best-effort */ }
+
+      gmbData = { metrics: gmbMetrics, reviews };
+    } catch (err) {
+      console.error("[report/monthly] gmb:", err.message);
+    }
+  }
+
+  if (!metaData && !googleData && !gmbData) {
+    return res.status(500).json({ error: "Nenhuma plataforma retornou dados. Verifique as credenciais." });
+  }
+
+  const html = buildMonthlyReportPage(
+    clientConfig.name,
+    clientConfig.emoji || "🏢",
+    clientConfig.color || "#7c3aed",
+    { metaData, googleData, gmbData, targets }
+  );
+
+  res.json({ html });
 });
 
 // ─── SERVE REACT APP ──────────────────────────────────────────────────────────
