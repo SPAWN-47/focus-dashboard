@@ -20,7 +20,7 @@ import axios from "axios";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
-import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId } from "./lib/gmb.js";
+import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId, getDefaultAccountName } from "./lib/gmb.js";
 
 import {
   checkRateLimit,
@@ -1709,6 +1709,226 @@ app.get("/health", (req, res) => {
   });
 });
 
+// ─── MONTHLY REPORT — client-accessible export ───────────────────────────────
+// Returns a print-optimised HTML page. Frontend opens it as a blob URL so the
+// client can print-to-PDF without needing a server-side PDF library.
+
+// Builds a standalone, print-optimised HTML page for the monthly report
+function buildMonthlyReportPage(clientName, clientEmoji, clientColor, metrics, targets, delta) {
+  const now = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  const m = metrics || {};
+  const t = targets  || {};
+  const d = delta    || {};
+
+  const fBRL0 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  const fBRL2 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const deltaHtml = (val, lowerIsBetter = false) => {
+    if (val == null) return "";
+    const good  = lowerIsBetter ? val < 0 : val >= 0;
+    const color = good ? "#16a34a" : "#dc2626";
+    const sign  = val >= 0 ? "+" : "";
+    return `<span style="font-size:11px;font-weight:700;color:${color};margin-left:6px;">${sign}${val.toFixed(1)}%</span>`;
+  };
+
+  const kpis = [
+    { label: "Investimento", value: fBRL0(m.gasto),                              delta: deltaHtml(d.gasto),             icon: "💰" },
+    { label: "Conversas",    value: String(Math.round(m.conversas || 0)),         delta: deltaHtml(d.conversas),         icon: "💬" },
+    { label: "CPL",          value: m.cpl > 0 ? fBRL2(m.cpl) : "—",             delta: deltaHtml(d.cpl, true),         icon: "🎯" },
+    { label: "CTR",          value: `${(m.ctr || 0).toFixed(2)}%`,               delta: "",                             icon: "👆" },
+    { label: "CPM",          value: fBRL2(m.cpm),                                delta: deltaHtml(d.cpm, true),         icon: "📢" },
+    { label: "Impressões",   value: (m.impressoes || 0).toLocaleString("pt-BR"), delta: "",                             icon: "👁️" },
+  ];
+
+  const progressBars = [
+    t.target_spend     > 0 ? { label: "Budget mensal",    value: m.gasto,     target: t.target_spend,     fmt: fBRL0, color: "#7c3aed" } : null,
+    t.target_conversas > 0 ? { label: "Meta de conversas", value: m.conversas, target: t.target_conversas, fmt: (v) => Math.round(v), color: "#059669" } : null,
+  ].filter(Boolean);
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatório Mensal · ${clientName}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f5; color: #111827; }
+    .page { max-width: 760px; margin: 32px auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4e7; }
+    .header { background: #09090b; padding: 28px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-emoji { font-size: 32px; line-height: 1; }
+    .header-title { color: #fff; font-size: 20px; font-weight: 700; }
+    .header-sub { color: #a1a1aa; font-size: 12px; margin-top: 3px; }
+    .header-date { color: #71717a; font-size: 11px; display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: ${clientColor}; display: inline-block; }
+    .section { padding: 28px 32px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #71717a; margin-bottom: 16px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .kpi-card { background: #f9fafb; border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; }
+    .kpi-label { font-size: 11px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .kpi-value { font-size: 22px; font-weight: 800; color: #09090b; display: flex; align-items: baseline; gap: 4px; }
+    .kpi-icon { font-size: 14px; }
+    .bar-row { margin-bottom: 14px; }
+    .bar-meta { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .bar-track { height: 7px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; }
+    .footer { background: #f9fafb; border-top: 1px solid #e4e4e7; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
+    .footer-brand { font-size: 12px; color: #a1a1aa; }
+    .footer-brand strong { color: #7c3aed; }
+    .print-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: ${clientColor}; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .print-btn:hover { opacity: .9; }
+    .print-bar { background: #09090b; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 0; }
+    .print-bar-text { color: #a1a1aa; font-size: 12px; }
+    @media print {
+      body { background: #fff; }
+      .page { margin: 0; border: none; border-radius: 0; box-shadow: none; }
+      .print-bar { display: none !important; }
+      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .section { padding: 20px 16px; }
+      .header { padding: 20px 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer { flex-direction: column; gap: 12px; }
+      .print-bar { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Print bar -->
+  <div class="print-bar">
+    <span class="print-bar-text">Relatório Mensal · ${clientName}</span>
+    <button class="print-btn" onclick="window.print()">
+      🖨️ Salvar como PDF
+    </button>
+  </div>
+
+  <div class="page">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <span class="header-emoji">${clientEmoji}</span>
+        <div>
+          <div class="header-title">${clientName}</div>
+          <div class="header-sub">Relatório de Performance · Mensal</div>
+        </div>
+      </div>
+      <div class="header-date">
+        <span class="dot"></span>
+        ${now}
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="section">
+      <div class="section-label">Métricas do período</div>
+      <div class="kpi-grid">
+        ${kpis.map((k) => `
+          <div class="kpi-card">
+            <div class="kpi-label">${k.icon} ${k.label}</div>
+            <div class="kpi-value">${k.value}${k.delta}</div>
+          </div>`).join("")}
+      </div>
+    </div>
+
+    ${progressBars.length > 0 ? `
+    <!-- Metas -->
+    <div class="section" style="padding-top:0;">
+      <div class="section-label">Acompanhamento de metas</div>
+      ${progressBars.map((bar) => {
+        const pct      = Math.min(100, Math.round((bar.value / bar.target) * 100));
+        const barColor = pct >= 100 ? "#dc2626" : bar.color;
+        return `
+        <div class="bar-row">
+          <div class="bar-meta">
+            <span style="color:#374151;">${bar.label}</span>
+            <span style="color:${pct >= 100 ? "#dc2626" : "#111827"};">${bar.fmt(bar.value)} / ${bar.fmt(bar.target)} (${pct}%)</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${pct}%;background:${barColor};"></div>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>` : ""}
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="footer-brand">Focus<strong>Dashboard</strong> · Relatório mensal</span>
+      <span style="font-size:11px;color:#d4d4d8;">${now}</span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+app.get("/api/report/monthly", async (req, res) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const clientId = user.role === "client"
+    ? user.clientId
+    : (req.query.client || user.clientId);
+
+  if (!clientId) return res.status(400).json({ error: "Cliente não especificado" });
+
+  // Clients can only export their own data
+  if (user.role === "client" && user.clientId !== clientId) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+
+  const clients = loadClients();
+  const clientConfig = clients[clientId];
+  if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
+
+  try {
+    // Fetch monthly Meta Ads data
+    const response = await axios.get(
+      `${META_BASE}/${clientConfig.accountId}/insights`,
+      {
+        params: {
+          fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
+          date_preset: DATE_PRESETS.monthly || "last_30d",
+          level: "account",
+          access_token: clientConfig.token,
+        },
+        timeout: 15000,
+      }
+    );
+
+    const raw = response.data.data?.[0] || {};
+    const { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm } = computeMetrics(raw);
+    const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm };
+
+    const clientData = getClient(clientId);
+    const targets = {
+      target_spend:    clientData?.target_spend    || 0,
+      target_conversas: clientData?.target_conversas || 0,
+    };
+
+    const prev = getPreviousPeriodMetrics(clientId, "monthly");
+    const delta = prev ? {
+      gasto:     prev.gasto     > 0 ? ((gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
+      conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
+      cpl:       prev.cpl       > 0 ? ((cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
+      cpm:       prev.cpm       > 0 ? ((cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
+    } : {};
+
+    const html = buildMonthlyReportPage(
+      clientConfig.name,
+      clientConfig.emoji || "🏢",
+      clientConfig.color || "#7c3aed",
+      metrics, targets, delta
+    );
+
+    res.json({ html });
+  } catch (err) {
+    const metaErr = err.response?.data?.error?.message || err.message;
+    console.error("[report/monthly]", metaErr);
+    res.status(500).json({ error: metaErr });
+  }
+});
+
 // ─── SERVE REACT APP ──────────────────────────────────────────────────────────
 
 app.use(express.static(join(__dirname, "dist")));
@@ -1719,6 +1939,7 @@ app.get("/*path", (req, res) => {
 });
 
 // ─── REPORT SCHEDULES ─────────────────────────────────────────────────────────
+// NOTE: /api/report/monthly endpoint is defined ABOVE the SPA catch-all.
 
 const REPORT_FROM = process.env.REPORT_FROM_EMAIL || "relatorios@focusdashboard.com.br";
 function getResend() {
@@ -1908,226 +2129,6 @@ async function sendScheduledReport(schedule) {
   }
 }
 
-// ─── MONTHLY REPORT — client-accessible export ───────────────────────────────
-// Returns a print-optimised HTML page. Frontend opens it as a blob URL so the
-// client can print-to-PDF without needing a server-side PDF library.
-
-app.get("/api/report/monthly", async (req, res) => {
-  const user = requireAuth(req, res);
-  if (!user) return;
-
-  const clientId = user.role === "client"
-    ? user.clientId
-    : (req.query.client || user.clientId);
-
-  if (!clientId) return res.status(400).json({ error: "Cliente não especificado" });
-
-  // Clients can only export their own data
-  if (user.role === "client" && user.clientId !== clientId) {
-    return res.status(403).json({ error: "Acesso negado" });
-  }
-
-  const clients = loadClients();
-  const clientConfig = clients[clientId];
-  if (!clientConfig) return res.status(404).json({ error: "Cliente não encontrado" });
-
-  try {
-    // Fetch monthly Meta Ads data
-    const response = await axios.get(
-      `${META_BASE}/${clientConfig.accountId}/insights`,
-      {
-        params: {
-          fields: "spend,impressions,clicks,reach,actions,cost_per_action_type",
-          date_preset: DATE_PRESETS.monthly || "last_30d",
-          level: "account",
-          access_token: clientConfig.token,
-        },
-        timeout: 15000,
-      }
-    );
-
-    const raw = response.data.data?.[0] || {};
-    const { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm } = computeMetrics(raw);
-    const metrics = { gasto, impressoes, cliques, alcance, conversas, cpl, ctr, cpm };
-
-    const clientData = getClient(clientId);
-    const targets = {
-      target_spend:    clientData?.target_spend    || 0,
-      target_conversas: clientData?.target_conversas || 0,
-    };
-
-    const prev = getPreviousPeriodMetrics(clientId, "monthly");
-    const delta = prev ? {
-      gasto:     prev.gasto     > 0 ? ((gasto     - prev.gasto)     / prev.gasto)     * 100 : null,
-      conversas: prev.conversas > 0 ? ((conversas - prev.conversas) / prev.conversas) * 100 : null,
-      cpl:       prev.cpl       > 0 ? ((cpl       - prev.cpl)       / prev.cpl)       * 100 : null,
-      cpm:       prev.cpm       > 0 ? ((cpm       - prev.cpm)       / prev.cpm)       * 100 : null,
-    } : {};
-
-    const html = buildMonthlyReportPage(
-      clientConfig.name,
-      clientConfig.emoji || "🏢",
-      clientConfig.color || "#7c3aed",
-      metrics, targets, delta
-    );
-
-    res.json({ html });
-  } catch (err) {
-    const metaErr = err.response?.data?.error?.message || err.message;
-    console.error("[report/monthly]", metaErr);
-    res.status(500).json({ error: metaErr });
-  }
-});
-
-// Builds a standalone, print-optimised HTML page for the monthly report
-function buildMonthlyReportPage(clientName, clientEmoji, clientColor, metrics, targets, delta) {
-  const now = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-  const m = metrics || {};
-  const t = targets  || {};
-  const d = delta    || {};
-
-  const fBRL0 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
-  const fBRL2 = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const deltaHtml = (val, lowerIsBetter = false) => {
-    if (val == null) return "";
-    const good  = lowerIsBetter ? val < 0 : val >= 0;
-    const color = good ? "#16a34a" : "#dc2626";
-    const sign  = val >= 0 ? "+" : "";
-    return `<span style="font-size:11px;font-weight:700;color:${color};margin-left:6px;">${sign}${val.toFixed(1)}%</span>`;
-  };
-
-  const kpis = [
-    { label: "Investimento", value: fBRL0(m.gasto),                              delta: deltaHtml(d.gasto),             icon: "💰" },
-    { label: "Conversas",    value: String(Math.round(m.conversas || 0)),         delta: deltaHtml(d.conversas),         icon: "💬" },
-    { label: "CPL",          value: m.cpl > 0 ? fBRL2(m.cpl) : "—",             delta: deltaHtml(d.cpl, true),         icon: "🎯" },
-    { label: "CTR",          value: `${(m.ctr || 0).toFixed(2)}%`,               delta: "",                             icon: "👆" },
-    { label: "CPM",          value: fBRL2(m.cpm),                                delta: deltaHtml(d.cpm, true),         icon: "📢" },
-    { label: "Impressões",   value: (m.impressoes || 0).toLocaleString("pt-BR"), delta: "",                             icon: "👁️" },
-  ];
-
-  const progressBars = [
-    t.target_spend     > 0 ? { label: "Budget mensal",    value: m.gasto,     target: t.target_spend,     fmt: fBRL0, color: "#7c3aed" } : null,
-    t.target_conversas > 0 ? { label: "Meta de conversas", value: m.conversas, target: t.target_conversas, fmt: (v) => Math.round(v), color: "#059669" } : null,
-  ].filter(Boolean);
-
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Relatório Mensal · ${clientName}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f4f5; color: #111827; }
-    .page { max-width: 760px; margin: 32px auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4e7; }
-    .header { background: #09090b; padding: 28px 32px; display: flex; justify-content: space-between; align-items: center; }
-    .header-left { display: flex; align-items: center; gap: 14px; }
-    .header-emoji { font-size: 32px; line-height: 1; }
-    .header-title { color: #fff; font-size: 20px; font-weight: 700; }
-    .header-sub { color: #a1a1aa; font-size: 12px; margin-top: 3px; }
-    .header-date { color: #71717a; font-size: 11px; display: flex; align-items: center; gap: 6px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: ${clientColor}; display: inline-block; }
-    .section { padding: 28px 32px; }
-    .section-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #71717a; margin-bottom: 16px; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .kpi-card { background: #f9fafb; border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; }
-    .kpi-label { font-size: 11px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
-    .kpi-value { font-size: 22px; font-weight: 800; color: #09090b; display: flex; align-items: baseline; gap: 4px; }
-    .kpi-icon { font-size: 14px; }
-    .bar-row { margin-bottom: 14px; }
-    .bar-meta { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
-    .bar-track { height: 7px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 999px; }
-    .footer { background: #f9fafb; border-top: 1px solid #e4e4e7; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
-    .footer-brand { font-size: 12px; color: #a1a1aa; }
-    .footer-brand strong { color: #7c3aed; }
-    .print-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: ${clientColor}; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .print-btn:hover { opacity: .9; }
-    .print-bar { background: #09090b; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; border-radius: 0; }
-    .print-bar-text { color: #a1a1aa; font-size: 12px; }
-    @media print {
-      body { background: #fff; }
-      .page { margin: 0; border: none; border-radius: 0; box-shadow: none; }
-      .print-bar { display: none !important; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 600px) {
-      .section { padding: 20px 16px; }
-      .header { padding: 20px 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-      .footer { flex-direction: column; gap: 12px; }
-      .print-bar { padding: 12px 16px; }
-    }
-  </style>
-</head>
-<body>
-  <!-- Print bar -->
-  <div class="print-bar">
-    <span class="print-bar-text">Relatório Mensal · ${clientName}</span>
-    <button class="print-btn" onclick="window.print()">
-      🖨️ Salvar como PDF
-    </button>
-  </div>
-
-  <div class="page">
-    <!-- Header -->
-    <div class="header">
-      <div class="header-left">
-        <span class="header-emoji">${clientEmoji}</span>
-        <div>
-          <div class="header-title">${clientName}</div>
-          <div class="header-sub">Relatório de Performance · Mensal</div>
-        </div>
-      </div>
-      <div class="header-date">
-        <span class="dot"></span>
-        ${now}
-      </div>
-    </div>
-
-    <!-- KPIs -->
-    <div class="section">
-      <div class="section-label">Métricas do período</div>
-      <div class="kpi-grid">
-        ${kpis.map((k) => `
-          <div class="kpi-card">
-            <div class="kpi-label">${k.icon} ${k.label}</div>
-            <div class="kpi-value">${k.value}${k.delta}</div>
-          </div>`).join("")}
-      </div>
-    </div>
-
-    ${progressBars.length > 0 ? `
-    <!-- Metas -->
-    <div class="section" style="padding-top:0;">
-      <div class="section-label">Acompanhamento de metas</div>
-      ${progressBars.map((bar) => {
-        const pct      = Math.min(100, Math.round((bar.value / bar.target) * 100));
-        const barColor = pct >= 100 ? "#dc2626" : bar.color;
-        return `
-        <div class="bar-row">
-          <div class="bar-meta">
-            <span style="color:#374151;">${bar.label}</span>
-            <span style="color:${pct >= 100 ? "#dc2626" : "#111827"};">${bar.fmt(bar.value)} / ${bar.fmt(bar.target)} (${pct}%)</span>
-          </div>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${pct}%;background:${barColor};"></div>
-          </div>
-        </div>`;
-      }).join("")}
-    </div>` : ""}
-
-    <!-- Footer -->
-    <div class="footer">
-      <span class="footer-brand">Focus<strong>Dashboard</strong> · Relatório mensal</span>
-      <span style="font-size:11px;color:#d4d4d8;">${now}</span>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
 // GET /api/report-schedules
 app.get("/api/report-schedules", (req, res) => {
   if (!requireAdmin(req, res)) return;
@@ -2239,6 +2240,33 @@ cron.schedule("0 8 * * *", async () => {
 initDb(dbModule);
 migrateFromJson();
 seedClients();
+
+// ─── GMB STARTUP WARMUP ───────────────────────────────────────────────────────
+// Resolves bare numeric gmb_location_id values to full "accounts/xxx/locations/yyy"
+// paths on server start. Saves permanently to clients.json so subsequent restarts
+// never need to call mybusinessaccountmanagement.googleapis.com again.
+async function initGmbAccountCache() {
+  const clients = loadClients();
+  const needsUpgrade = Object.entries(clients).filter(([, c]) =>
+    c.gmb_location_id && /^\d+$/.test((c.gmb_location_id || "").trim())
+  );
+  if (needsUpgrade.length === 0) return;
+  try {
+    const accountName = await getDefaultAccountName();
+    let changed = false;
+    for (const [clientId, config] of needsUpgrade) {
+      const fullPath = `${accountName}/locations/${config.gmb_location_id.trim()}`;
+      clients[clientId].gmb_location_id = fullPath;
+      changed = true;
+      console.log(`[gmb] Upgraded ${clientId}: ${config.gmb_location_id} → ${fullPath}`);
+    }
+    if (changed) saveClients(clients);
+    console.log(`[gmb] initGmbAccountCache: upgraded ${needsUpgrade.length} location ID(s)`);
+  } catch (err) {
+    console.warn("[gmb] initGmbAccountCache failed (will retry on first GMB request):", err.message);
+  }
+}
+initGmbAccountCache();
 
 app.listen(PORT, () => {
   console.log(`\n✅  Focus Dashboard rodando na porta ${PORT}`);
