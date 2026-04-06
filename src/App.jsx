@@ -6,10 +6,20 @@ import AdminPage from "./pages/AdminPage";
 import GoogleDashboardPage from "./pages/GoogleDashboardPage";
 import GmbDashboardPage from "./pages/GmbDashboardPage";
 import GuidePage from "./pages/GuidePage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 export default function App() {
   const { user } = useAuth();
   const path = window.location.pathname;
+
+  if (path === "/forgot-password") {
+    return <ForgotPasswordPage />;
+  }
+
+  if (path === "/reset-password") {
+    return <ResetPasswordPage />;
+  }
 
   if (path === "/login") {
     if (user) {

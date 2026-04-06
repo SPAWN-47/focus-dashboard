@@ -17,6 +17,7 @@ import rateLimit from "express-rate-limit";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
+import crypto from "crypto";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
@@ -59,6 +60,11 @@ import {
   saveAlertRule,
   updateAlertRuleActive,
   deleteAlertRule,
+  getUserByEmail,
+  updateUserPassword,
+  saveResetToken,
+  getResetToken,
+  markTokenUsed,
 } from "./lib/db.js";
 import { Resend } from "resend";
 
@@ -167,6 +173,74 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
   };
 
   return res.json({ token: signToken(payload), user: payload });
+});
+
+// ── FORGOT PASSWORD ──────────────────────────────────────────────────────────
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: "Email obrigatório" });
+
+  try {
+    const user = getUserByEmail(email.toLowerCase().trim());
+    if (user) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+      saveResetToken(token, user.username, expiresAt);
+
+      const baseUrl = process.env.APP_URL || "https://dashboard.focusmidia.com.br";
+      const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+      const resendKey = process.env.RESEND_API_KEY;
+      if (resendKey) {
+        const { Resend } = await import("resend");
+        const resend = new Resend(resendKey);
+        await resend.emails.send({
+          from: "Focus Dashboard <noreply@focusmidia.com.br>",
+          to: email,
+          subject: "Recuperação de senha — Focus Dashboard",
+          html: `
+            <div style="font-family:system-ui,sans-serif;background:#09090b;color:#f4f4f5;padding:40px;border-radius:12px;max-width:480px;margin:0 auto">
+              <div style="margin-bottom:24px">
+                <span style="font-size:20px;font-weight:700;color:#fff">Focus</span>
+                <span style="font-size:20px;font-weight:700;color:#C9F80D">Dashboard</span>
+              </div>
+              <h2 style="color:#f4f4f5;margin:0 0 8px">Recuperação de senha</h2>
+              <p style="color:#a1a1aa;margin:0 0 24px">Clique no botão abaixo para criar uma nova senha. O link é válido por 1 hora.</p>
+              <a href="${resetLink}" style="display:inline-block;background:#C9F80D;color:#09090b;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px">Criar nova senha</a>
+              <p style="color:#52525b;font-size:12px;margin-top:24px">Se você não solicitou a recuperação, ignore este email.</p>
+              <p style="color:#3f3f46;font-size:12px">Focus Mídia | Marketing e Performance</p>
+            </div>
+          `,
+        });
+      }
+    }
+    // Always return 200 to not reveal if email exists
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[forgot-password]", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// ── RESET PASSWORD ────────────────────────────────────────────────────────────
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) return res.status(400).json({ error: "Token e senha obrigatórios" });
+  if (password.length < 6) return res.status(400).json({ error: "Senha deve ter ao menos 6 caracteres" });
+
+  try {
+    const record = getResetToken(token);
+    if (!record) return res.status(400).json({ error: "Token inválido ou já utilizado" });
+    if (Date.now() > record.expires_at) return res.status(400).json({ error: "Token expirado. Solicite uma nova recuperação." });
+
+    const hashed = await hashPassword(password);
+    updateUserPassword(record.username, hashed);
+    markTokenUsed(token);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[reset-password]", err);
+    res.status(500).json({ error: "Erro interno" });
+  }
 });
 
 // ─── CLIENTS (public) ────────────────────────────────────────────────────────
