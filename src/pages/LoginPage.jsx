@@ -149,7 +149,7 @@ export default function LoginPage() {
         {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-96 h-96 rounded-full blur-3xl opacity-10" style={{ background: "#C9F80D", transform: "translate(-50%, -50%)" }} />
-          <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-5" style={{ background: "#8b5cf6", transform: "translate(40%, 40%)" }} />
+          <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full blur-3xl opacity-5" style={{ background: "#C9F80D", transform: "translate(40%, 40%)" }} />
           {/* Grid lines */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
             <defs>

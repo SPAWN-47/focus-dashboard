@@ -4,7 +4,7 @@ import {
   RefreshCw, Eye, Users, MousePointer, MessageCircle,
   TrendingUp, DollarSign, Target, BarChart3, AlertCircle,
   CheckCircle2, XCircle, ExternalLink, ArrowLeft, LogOut, Settings,
-  FileDown,
+  FileDown, Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -57,7 +57,7 @@ const Logo = ({ className = "" }) => (
     <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
     <path d="M9 8.75h6" />
     <path d="M9 11.75h4.5" />
-    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
 
@@ -666,10 +666,10 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
-              <Logo className="w-4 h-4 text-violet-500" />
+              <Logo className="w-4 h-4 text-[#C9F80D]" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus<span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-[#C9F80D]">Dashboard</span>
             </span>
             <span className="text-zinc-600 hidden sm:block">|</span>
             <span className="text-sm font-semibold hidden sm:block text-sky-400">Meta</span>
@@ -777,9 +777,9 @@ export default function DashboardPage() {
               disabled={exporting || !activeClient}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
-                background: exporting ? "#7c3aed22" : "#7c3aed15",
-                borderColor: "#7c3aed50",
-                color: "#a78bfa",
+                background: exporting ? "#C9F80D22" : "#C9F80D15",
+                borderColor: "#C9F80D50",
+                color: "#C9F80D",
               }}
               title="Exportar relatório mensal"
             >
@@ -1255,79 +1255,201 @@ export default function DashboardPage() {
                   </motion.div>
                 )}
 
-                {/* ── ANÚNCIOS ATIVOS ── */}
-                {creativesData?.ads?.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.5 }}
-                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
-                  >
-                    <div className="flex items-center justify-between mb-5">
-                      <div>
-                        <h2 className="text-sm font-bold text-zinc-100">Anúncios</h2>
-                        <p className="text-xs text-zinc-500 mt-0.5">Top {creativesData.ads.length} por conversas · {PERIODS.find((p) => p.id === activePeriod)?.sub}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-                      {creativesData.ads.slice(0, 10).map((ad, i) => {
-                        const medals = ["🥇","🥈","🥉"];
-                        const medal = i < 3 ? medals[i] : null;
-                        return (
-                          <div key={ad.adId || i} className="group bg-zinc-800/50 border border-zinc-700/40 rounded-xl overflow-hidden hover:border-zinc-600 transition-all">
-                            {/* Thumbnail */}
-                            <div className="aspect-video bg-zinc-800 relative overflow-hidden">
-                              {ad.thumbnail ? (
-                                <img src={ad.thumbnail} alt={ad.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { e.target.style.display = "none"; }} />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <svg className="w-6 h-6 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                                </div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                              {/* Rank badge */}
-                              <div className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm ${
-                                i === 0 ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
-                                : i === 1 ? "bg-zinc-400/20 text-zinc-300 border border-zinc-400/30"
-                                : i === 2 ? "bg-orange-600/20 text-orange-300 border border-orange-600/30"
-                                : "bg-zinc-900/70 text-zinc-400 border border-zinc-700/50"
-                              }`}>
-                                {medal || `${i+1}°`}
-                              </div>
-                              {/* Conversas badge */}
-                              {ad.conversas > 0 && (
-                                <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-                                  <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                                  <span className="text-[10px] font-bold text-emerald-300">{ad.conversas}</span>
-                                </div>
-                              )}
-                            </div>
-                            {/* Info */}
-                            <div className="p-2.5">
-                              <p className="text-[11px] font-semibold text-zinc-200 truncate mb-2" title={ad.creativeTitle || ad.name}>
-                                {ad.creativeTitle || ad.name}
-                              </p>
-                              <div className="grid grid-cols-2 gap-1">
-                                <div className="text-center bg-zinc-800 rounded-lg py-1.5">
-                                  <p className="text-xs font-bold text-white tabular-nums">R$ {(ad.gasto||0).toLocaleString("pt-BR",{maximumFractionDigits:0})}</p>
-                                  <p className="text-[9px] text-zinc-500 mt-0.5 font-medium uppercase">Gasto</p>
-                                </div>
-                                <div className="text-center bg-zinc-800 rounded-lg py-1.5">
-                                  <p className="text-xs font-bold text-white tabular-nums">{ad.conversas > 0 ? `R$ ${(ad.cpl||0).toFixed(0)}` : "—"}</p>
-                                  <p className="text-[9px] text-zinc-500 mt-0.5 font-medium uppercase">CPL</p>
-                                </div>
-                              </div>
-                              <div className="flex justify-between mt-2 text-[10px] text-zinc-600">
-                                <span>CTR {(ad.ctr||0).toFixed(1)}%</span>
-                                <span>{(ad.impressoes||0).toLocaleString("pt-BR")} imp.</span>
-                              </div>
-                            </div>
+                {/* ── CRIATIVOS ── */}
+                {creativesData?.ads?.length > 0 && (() => {
+                  const ads = creativesData.ads.slice(0, 9);
+                  const totalGasto = ads.reduce((s, a) => s + (a.gasto || 0), 0);
+                  const totalConversas = ads.reduce((s, a) => s + (a.conversas || 0), 0);
+                  const avgCpl = totalConversas > 0 ? totalGasto / totalConversas : 0;
+                  const maxCtr = Math.max(...ads.map((a) => a.ctr || 0), 0.01);
+
+                  const getCplStyle = (cpl) => {
+                    if (!cpl || !avgCpl) return { text: "text-zinc-400", pill: "bg-zinc-800 border-zinc-700/50" };
+                    const r = cpl / avgCpl;
+                    if (r <= 0.8) return { text: "text-emerald-400", pill: "bg-emerald-500/10 border border-emerald-500/25" };
+                    if (r <= 1.2) return { text: "text-yellow-400", pill: "bg-yellow-500/10 border border-yellow-500/25" };
+                    return { text: "text-red-400", pill: "bg-red-500/10 border border-red-500/25" };
+                  };
+
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.5 }}
+                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+                    >
+                      {/* Header */}
+                      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                        <div>
+                          <h2 className="text-sm font-bold text-zinc-100">Criativos</h2>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            Top {ads.length} anúncios por conversas · {PERIODS.find((p) => p.id === activePeriod)?.sub}
+                          </p>
+                        </div>
+                        {/* Aggregate strip */}
+                        <div className="flex items-center gap-4 bg-zinc-800/50 border border-zinc-700/40 rounded-xl px-4 py-2">
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-zinc-200 tabular-nums">
+                              R$ {totalGasto.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                            </p>
+                            <p className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">Gasto total</p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
+                          <div className="w-px h-6 bg-zinc-700" />
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-emerald-400 tabular-nums">{totalConversas}</p>
+                            <p className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">Conversas</p>
+                          </div>
+                          <div className="w-px h-6 bg-zinc-700" />
+                          <div className="text-center">
+                            <p className="text-xs font-bold text-zinc-200 tabular-nums">
+                              {avgCpl > 0 ? `R$ ${avgCpl.toFixed(0)}` : "—"}
+                            </p>
+                            <p className="text-[9px] text-zinc-500 uppercase tracking-wide mt-0.5">CPL médio</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cards grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {ads.map((ad, i) => {
+                          const cplStyle = getCplStyle(ad.cpl);
+                          const ctrPct = maxCtr > 0 ? ((ad.ctr || 0) / maxCtr) * 100 : 0;
+                          const isTop = i === 0;
+
+                          const rankBadge =
+                            i === 0 ? { label: "🥇", cls: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30" }
+                            : i === 1 ? { label: "🥈", cls: "bg-zinc-300/10 text-zinc-200 border-zinc-400/25" }
+                            : i === 2 ? { label: "🥉", cls: "bg-orange-500/15 text-orange-300 border-orange-500/30" }
+                            : { label: `${i + 1}°`, cls: "bg-black/50 text-zinc-400 border-zinc-600/30" };
+
+                          return (
+                            <div
+                              key={ad.adId || i}
+                              className={`group relative flex flex-col bg-zinc-800/30 border rounded-2xl overflow-hidden transition-all duration-200 hover:bg-zinc-800/60 ${
+                                isTop
+                                  ? "border-yellow-500/30 shadow-lg shadow-yellow-500/5"
+                                  : i === 1
+                                  ? "border-zinc-400/20 hover:border-zinc-400/30"
+                                  : i === 2
+                                  ? "border-orange-600/20 hover:border-orange-500/25"
+                                  : "border-zinc-700/30 hover:border-zinc-600/40"
+                              }`}
+                            >
+                              {/* Thumbnail */}
+                              <div className="relative aspect-[16/9] bg-zinc-900 overflow-hidden flex-shrink-0">
+                                {ad.thumbnail ? (
+                                  <img
+                                    src={ad.thumbnail}
+                                    alt={ad.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    onError={(e) => {
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                ) : null}
+                                {/* Fallback placeholder */}
+                                {!ad.thumbnail && (
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-zinc-800 to-zinc-900">
+                                    <div className="w-10 h-10 rounded-xl bg-zinc-700/40 flex items-center justify-center">
+                                      <ImageIcon className="w-5 h-5 text-zinc-600" />
+                                    </div>
+                                    <p className="text-[10px] text-zinc-600">Sem preview</p>
+                                  </div>
+                                )}
+                                {/* Gradient overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent pointer-events-none" />
+
+                                {/* Rank badge */}
+                                <div className={`absolute top-2 left-2 flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold backdrop-blur-md border ${rankBadge.cls}`}>
+                                  {rankBadge.label}
+                                </div>
+
+                                {/* Conversas pill over gradient at bottom */}
+                                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
+                                  {ad.conversas > 0 ? (
+                                    <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 backdrop-blur-sm rounded-full px-2.5 py-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" style={{ animation: "pulse 2s infinite" }} />
+                                      <span className="text-[11px] font-bold text-emerald-300 whitespace-nowrap">
+                                        {ad.conversas} conversa{ad.conversas !== 1 ? "s" : ""}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 bg-zinc-900/60 border border-zinc-700/40 backdrop-blur-sm rounded-full px-2.5 py-1">
+                                      <span className="text-[10px] text-zinc-500">Sem conversas</span>
+                                    </div>
+                                  )}
+                                  {/* CPL pill */}
+                                  {ad.conversas > 0 && (
+                                    <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm whitespace-nowrap ${cplStyle.pill} ${cplStyle.text}`}>
+                                      R$ {(ad.cpl || 0).toFixed(0)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Content */}
+                              <div className="flex flex-col flex-1 p-3 gap-3">
+                                {/* Title */}
+                                <p
+                                  className="text-[12px] font-semibold text-zinc-200 line-clamp-2 leading-snug min-h-[2.25rem]"
+                                  title={ad.creativeTitle || ad.name}
+                                >
+                                  {ad.creativeTitle || ad.name}
+                                </p>
+
+                                {/* Metrics row */}
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  <div className="bg-zinc-900/70 rounded-xl px-1.5 py-2 text-center">
+                                    <p className="text-[11px] font-bold text-white tabular-nums">
+                                      R$ {(ad.gasto || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                                    </p>
+                                    <p className="text-[9px] text-zinc-500 mt-0.5 uppercase tracking-wide">Gasto</p>
+                                  </div>
+                                  <div className="bg-zinc-900/70 rounded-xl px-1.5 py-2 text-center">
+                                    <p className="text-[11px] font-bold text-zinc-300 tabular-nums">
+                                      {(ad.impressoes || 0) >= 1000
+                                        ? `${((ad.impressoes || 0) / 1000).toFixed(1)}k`
+                                        : (ad.impressoes || 0)}
+                                    </p>
+                                    <p className="text-[9px] text-zinc-500 mt-0.5 uppercase tracking-wide">Imp.</p>
+                                  </div>
+                                  <div className="bg-zinc-900/70 rounded-xl px-1.5 py-2 text-center">
+                                    <p className="text-[11px] font-bold text-zinc-300 tabular-nums">
+                                      R$ {(ad.cpm || 0).toFixed(0)}
+                                    </p>
+                                    <p className="text-[9px] text-zinc-500 mt-0.5 uppercase tracking-wide">CPM</p>
+                                  </div>
+                                </div>
+
+                                {/* CTR progress bar */}
+                                <div>
+                                  <div className="flex justify-between items-center mb-1.5">
+                                    <span className="text-[10px] text-zinc-500 uppercase tracking-wide">CTR</span>
+                                    <span className="text-[10px] font-semibold text-zinc-300 tabular-nums">
+                                      {(ad.ctr || 0).toFixed(2)}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-zinc-700/40 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-700 ${
+                                        ctrPct > 66
+                                          ? "bg-emerald-500"
+                                          : ctrPct > 33
+                                          ? "bg-yellow-500"
+                                          : "bg-zinc-500"
+                                      }`}
+                                      style={{ width: `${Math.max(ctrPct, 2)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  );
+                })()}
               </motion.div>
             </AnimatePresence>
           )
@@ -1338,7 +1460,7 @@ export default function DashboardPage() {
       <footer className="mt-16 border-t border-zinc-800/60 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 text-zinc-600 text-xs">
-            <Logo className="w-4 h-4 text-violet-500/50" />
+            <Logo className="w-4 h-4 text-[#C9F80D]/50" />
             <span>Focus Mídia Digital — Dashboard de Performance</span>
           </div>
           <a

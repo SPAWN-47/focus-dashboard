@@ -17,7 +17,7 @@ const Logo = ({ className = "" }) => (
     <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
     <path d="M9 8.75h6" />
     <path d="M9 11.75h4.5" />
-    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
 
@@ -57,7 +57,7 @@ const AD_TYPES = [
     emoji: "⚡",
     label: "Performance Max",
     desc: "Campanha automatizada em todos os canais Google com IA.",
-    color: "#8b5cf6",
+    color: "#C9F80D",
   },
 ];
 
@@ -264,7 +264,7 @@ const GoogleFunnelViz = ({ metrics }) => {
   const fNum = (v) => (v || 0).toLocaleString("pt-BR");
   const stages = [
     { label: "Impressões", value: metrics.impressoes || 0, color: "#4285F4" },
-    { label: "Cliques",    value: metrics.cliques    || 0, color: "#8b5cf6" },
+    { label: "Cliques",    value: metrics.cliques    || 0, color: "#C9F80D" },
     { label: "Conversões", value: metrics.conversas  || 0, color: "#10B981" },
   ];
 
@@ -514,7 +514,7 @@ export default function GoogleDashboardPage() {
     ? [
         { label: "Impressões",       value: fNum(m.impressoes),   delta: data.delta?.impressoes ?? null, icon: Eye,          color: "#0ea5e9", lowerIsBetter: false },
         { label: "Cliques",          value: fNum(m.cliques),      delta: data.delta?.cliques    ?? null, icon: MousePointer, color: GOOGLE_BLUE, lowerIsBetter: false },
-        { label: "CTR",              value: fPct(m.ctr),          delta: null,                           icon: Target,       color: "#8b5cf6", lowerIsBetter: false },
+        { label: "CTR",              value: fPct(m.ctr),          delta: null,                           icon: Target,       color: "#C9F80D", lowerIsBetter: false },
         { label: "CPC Médio",        value: fBRL(m.cpc),          delta: null,                           icon: DollarSign,   color: "#22c55e", lowerIsBetter: true },
         { label: "Conversões",       value: fNum(m.conversas),    delta: data.delta?.conversas  ?? null, icon: Zap,          color: "#10b981", lowerIsBetter: false },
         { label: "CPL",              value: m.cpl > 0 ? fBRL(m.cpl) : "—", delta: data.delta?.cpl ?? null, icon: Target, color: "#f97316", lowerIsBetter: true },
@@ -543,10 +543,10 @@ export default function GoogleDashboardPage() {
 
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
-              <Logo className="w-4 h-4 text-violet-500" />
+              <Logo className="w-4 h-4 text-[#C9F80D]" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus<span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-[#C9F80D]">Dashboard</span>
             </span>
             <span className="text-zinc-600 hidden sm:block">|</span>
             <span className="text-sm font-semibold hidden sm:block" style={{ color: GOOGLE_BLUE }}>
@@ -692,9 +692,9 @@ export default function GoogleDashboardPage() {
                   disabled={exporting || !clientId}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    background: exporting ? "#7c3aed22" : "#7c3aed15",
-                    borderColor: "#7c3aed50",
-                    color: "#a78bfa",
+                    background: exporting ? "#C9F80D22" : "#C9F80D15",
+                    borderColor: "#C9F80D50",
+                    color: "#C9F80D",
                   }}
                   title="Exportar relatório mensal"
                 >
@@ -995,7 +995,7 @@ export default function GoogleDashboardPage() {
                     { label: "View Rate",    value: fPct(yt.viewRate),                        color: "#f97316",    icon: Eye        },
                     { label: "CPV Médio",    value: yt.cpv != null ? fBRL(yt.cpv) : "—",     color: "#f59e0b",    icon: DollarSign, lowerIsBetter: true },
                     { label: "Conversões",   value: fNum(yt.conversas),                       color: "#10b981",    icon: Zap        },
-                    { label: "Investimento", value: fBRL0(yt.gasto),                          color: "#8b5cf6",    icon: DollarSign },
+                    { label: "Investimento", value: fBRL0(yt.gasto),                          color: "#C9F80D",    icon: DollarSign },
                   ];
                   return (
                     <>
@@ -1313,10 +1313,10 @@ export default function GoogleDashboardPage() {
         >
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1 rounded border border-zinc-800">
-              <Logo className="w-3.5 h-3.5 text-violet-500" />
+              <Logo className="w-3.5 h-3.5 text-[#C9F80D]" />
             </div>
             <span className="text-xs text-zinc-500">
-              Focus<span className="text-violet-500 font-semibold">Dashboard</span>
+              Focus<span className="text-[#C9F80D] font-semibold">Dashboard</span>
               {" "}— Google Ads
             </span>
           </div>

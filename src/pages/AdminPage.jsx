@@ -40,7 +40,7 @@ function ClientNoteField({ clientId, initialNote = "" }) {
             onKeyDown={(e) => { if (e.key === "Escape") { setEditing(false); setNote(initialNote); } }}
             placeholder="Escreva uma nota sobre este cliente..."
             rows={3}
-            className="w-full bg-zinc-800 border border-violet-500/50 text-zinc-200 placeholder-zinc-600 text-xs rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:border-violet-500"
+            className="w-full bg-zinc-800 border border-[#C9F80D]/50 text-zinc-200 placeholder-zinc-600 text-xs rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:border-[#C9F80D]"
           />
           <p className="text-[10px] text-zinc-600 mt-1">Enter para nova linha · clique fora para salvar · Esc para cancelar</p>
         </div>
@@ -202,7 +202,7 @@ function ClientModal({ client, onClose, onSave }) {
                   value={form.id}
                   onChange={(e) => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
                   placeholder="ex: minha-empresa"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D]"
                 />
               </div>
             )}
@@ -213,7 +213,7 @@ function ClientModal({ client, onClose, onSave }) {
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="Nome do cliente"
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D]"
               />
             </div>
 
@@ -227,7 +227,7 @@ function ClientModal({ client, onClose, onSave }) {
                       onClick={() => set("emoji", e)}
                       className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition ${
                         form.emoji === e
-                          ? "bg-violet-600 ring-2 ring-violet-400"
+                          ? "bg-[#C9F80D] ring-2 ring-[#C9F80D]"
                           : "bg-zinc-800 hover:bg-zinc-700"
                       }`}
                     >
@@ -260,7 +260,7 @@ function ClientModal({ client, onClose, onSave }) {
                 value={form.accountId}
                 onChange={(e) => set("accountId", e.target.value)}
                 placeholder="act_123456789"
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono"
               />
             </div>
 
@@ -271,7 +271,7 @@ function ClientModal({ client, onClose, onSave }) {
                 onChange={(e) => set("token", e.target.value)}
                 placeholder="EAABx..."
                 rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono resize-none"
+                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono resize-none"
               />
             </div>
 
@@ -284,7 +284,7 @@ function ClientModal({ client, onClose, onSave }) {
                   value={form.google_ads_customer_id}
                   onChange={(e) => set("google_ads_customer_id", e.target.value)}
                   placeholder="ex: 123-456-7890"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono"
                 />
                 <p className="text-[10px] text-zinc-600 mt-1">Apenas o número da conta. Ex: 123-456-7890</p>
               </div>
@@ -296,7 +296,7 @@ function ClientModal({ client, onClose, onSave }) {
                   value={form.gmb_location_id}
                   onChange={(e) => set("gmb_location_id", e.target.value)}
                   placeholder="ex: 17414490206052773930"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-violet-500 font-mono"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono"
                 />
                 <p className="text-[10px] text-zinc-600 mt-1">ID numérico da localização. Encontre em business.google.com/locations</p>
               </div>
@@ -315,7 +315,7 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.ticket_medio}
                     onChange={(e) => set("ticket_medio", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D]"
                   />
                 </div>
                 <div>
@@ -327,7 +327,7 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_cpl_max}
                     onChange={(e) => set("target_cpl_max", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D]"
                   />
                 </div>
                 <div>
@@ -339,7 +339,7 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_conversas}
                     onChange={(e) => set("target_conversas", e.target.value)}
                     placeholder="0"
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D]"
                   />
                 </div>
                 <div>
@@ -351,7 +351,7 @@ function ClientModal({ client, onClose, onSave }) {
                     value={form.target_spend}
                     onChange={(e) => set("target_spend", e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D]"
                   />
                 </div>
               </div>
@@ -411,7 +411,7 @@ function ClientModal({ client, onClose, onSave }) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-xl py-2.5 text-sm transition"
+                className="flex-1 bg-[#C9F80D] hover:bg-[#b8e00c] disabled:opacity-50 text-zinc-950 font-semibold rounded-xl py-2.5 text-sm transition"
               >
                 {saving ? "Salvando..." : "Salvar"}
               </button>
@@ -553,7 +553,7 @@ function generateClientReportHTML(client, data, period) {
   const scoreLabel = score >= 80 ? "Excelente" : score >= 60 ? "Bom" : score >= 40 ? "Regular" : score >= 20 ? "Atenção" : "Crítico";
 
   const kpis = [
-    { label: "Investimento", value: fBRL0(m.gasto), delta: d.gasto, li: false, sub: t.target_spend ? `Meta: ${fBRL0(t.target_spend)}` : null, progress: progressBar(m.gasto, t.target_spend, "#7c3aed") },
+    { label: "Investimento", value: fBRL0(m.gasto), delta: d.gasto, li: false, sub: t.target_spend ? `Meta: ${fBRL0(t.target_spend)}` : null, progress: progressBar(m.gasto, t.target_spend, "#C9F80D") },
     { label: "Conversas", value: m.conversas ?? 0, delta: d.conversas, li: false, sub: t.target_conversas ? `Meta: ${t.target_conversas}` : null, progress: progressBar(m.conversas, t.target_conversas, "#059669") },
     { label: "CPL", value: m.cpl > 0 ? fBRL(m.cpl) : "—", delta: d.cpl, li: true, sub: t.target_cpl_max ? `Limite: ${fBRL(t.target_cpl_max)}` : null },
     { label: "CTR", value: fPct(m.ctr), delta: null },
@@ -583,7 +583,7 @@ function generateClientReportHTML(client, data, period) {
 
   <!-- Print button -->
   <div class="no-print" style="text-align:right;margin-bottom:24px;">
-    <button onclick="window.print()" style="background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">
+    <button onclick="window.print()" style="background:#C9F80D;color:#09090b;border:none;padding:10px 20px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">
       ↓ Salvar como PDF
     </button>
   </div>
@@ -642,7 +642,7 @@ function generateClientReportHTML(client, data, period) {
             <span style="font-size:13px;font-weight:700;color:${over ? "#dc2626" : "#111827"};">${fBRL0(m.gasto)} / ${fBRL0(t.target_spend)} <span style="color:${over ? "#dc2626" : "#6b7280"};font-weight:500;">(${pct}%)</span></span>
           </div>
           <div style="height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${over ? "#dc2626" : "#7c3aed"};border-radius:999px;"></div>
+            <div style="height:100%;width:${pct}%;background:${over ? "#dc2626" : "#C9F80D"};border-radius:999px;"></div>
           </div>
         </div>`;
       })() : ""}
@@ -665,8 +665,8 @@ function generateClientReportHTML(client, data, period) {
   <!-- Footer -->
   <div style="border-top:1.5px solid #f3f4f6;padding-top:20px;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:8px;">
-      <div style="width:24px;height:24px;border-radius:6px;background:#7c3aed;display:flex;align-items:center;justify-content:center;">
-        <svg viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      <div style="width:24px;height:24px;border-radius:6px;background:#C9F80D;display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="#09090b" width="14" height="14"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
       </div>
       <span style="font-size:12px;font-weight:700;color:#374151;">Focus Dashboard</span>
     </div>
@@ -818,7 +818,7 @@ function ClientPerfCard({ client, data, period, anomalies, onExport, trendDays, 
           {data?.hasData && onExport && (
             <button
               onClick={onExport}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-800 hover:bg-violet-600 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-800 hover:bg-[#C9F80D] rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-950 transition"
               title="Exportar relatório"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -940,7 +940,7 @@ function ClientPerfCard({ client, data, period, anomalies, onExport, trendDays, 
                       </div>
                       <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${over ? "bg-red-500" : "bg-violet-500"}`}
+                          className={`h-full rounded-full transition-all ${over ? "bg-red-500" : "bg-[#C9F80D]"}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -970,7 +970,7 @@ function ClientPerfCard({ client, data, period, anomalies, onExport, trendDays, 
           {projection && (
             <div className="mt-4 pt-4 border-t border-zinc-800/60">
               <div className="flex items-center gap-1.5 mb-3">
-                <svg className="w-3.5 h-3.5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-3.5 h-3.5 text-[#C9F80D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
                 </svg>
                 <span className="text-[11px] text-zinc-400 font-semibold uppercase tracking-wide">Projeção · fim do mês</span>
@@ -994,7 +994,7 @@ function ClientPerfCard({ client, data, period, anomalies, onExport, trendDays, 
                         <>
                           <div className="relative h-1.5 bg-zinc-700 rounded-full overflow-hidden mt-2">
                             <div className="absolute h-full bg-zinc-600 rounded-full" style={{ width: `${Math.min(100, currentPct)}%` }} />
-                            <div className="absolute h-full rounded-full opacity-50" style={{ left: `${Math.min(100, currentPct)}%`, width: `${Math.max(0, projPct - currentPct)}%`, background: willOver ? "#ef4444" : "#7c3aed" }} />
+                            <div className="absolute h-full rounded-full opacity-50" style={{ left: `${Math.min(100, currentPct)}%`, width: `${Math.max(0, projPct - currentPct)}%`, background: willOver ? "#ef4444" : "#C9F80D" }} />
                           </div>
                           <p className={`text-[10px] mt-1.5 font-medium ${willOver ? "text-red-400" : willUnder ? "text-yellow-400" : "text-emerald-400"}`}>
                             {willOver ? "⚠ Vai estourar" : willUnder ? "↘ Abaixo do budget" : "✓ No ritmo certo"}
@@ -1326,18 +1326,18 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
-              <svg className="w-4 h-4 text-violet-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-4 h-4 text-[#C9F80D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
                 <path d="M9 8.75h6" />
                 <path d="M9 11.75h4.5" />
-                <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+                <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
               </svg>
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus<span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-[#C9F80D]">Dashboard</span>
             </span>
             <span className="text-zinc-600 hidden sm:block">|</span>
-            <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 hidden sm:block">
+            <span className="text-xs bg-[#C9F80D]/15 text-[#C9F80D] border border-[#C9F80D]/30 rounded-full px-2 py-0.5 hidden sm:block">
               Admin
             </span>
             {anomalies !== null && anomalies.length > 0 && (
@@ -1382,7 +1382,7 @@ export default function AdminPage() {
               onClick={() => setTab(t.id)}
               className={`px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-medium transition shrink-0 ${
                 tab === t.id
-                  ? "bg-violet-600 text-white"
+                  ? "bg-[#C9F80D] text-zinc-950"
                   : "bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700"
               }`}
             >
@@ -1414,7 +1414,7 @@ export default function AdminPage() {
                   <p className="text-zinc-500 text-xs">Anote estas credenciais — a senha não será exibida novamente.</p>
                   <button
                     onClick={() => navigator.clipboard.writeText(`Login: ${newClientResult.username}\nSenha: ${newClientResult.password}`)}
-                    className="text-xs text-violet-400 hover:text-violet-300 underline transition shrink-0"
+                    className="text-xs text-[#C9F80D] hover:text-[#C9F80D] underline transition shrink-0"
                   >
                     Copiar credenciais
                   </button>
@@ -1437,7 +1437,7 @@ export default function AdminPage() {
               <h2 className="text-lg sm:text-xl font-bold">Visão Geral</h2>
               <button
                 onClick={() => setModal("new")}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition"
+                className="flex items-center gap-2 bg-[#C9F80D] hover:bg-[#b8e00c] text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2.5 transition"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1494,7 +1494,7 @@ export default function AdminPage() {
                       </div>
                       <a
                         href={`/dashboard?client=${a.clientId}`}
-                        className="text-xs text-zinc-500 hover:text-violet-400 transition shrink-0"
+                        className="text-xs text-zinc-500 hover:text-[#C9F80D] transition shrink-0"
                       >
                         Ver →
                       </a>
@@ -1594,7 +1594,7 @@ export default function AdminPage() {
                         }
                       });
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-violet-600 text-zinc-400 hover:text-white rounded-xl text-xs font-semibold transition"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-[#C9F80D] text-zinc-400 hover:text-zinc-950 rounded-xl text-xs font-semibold transition"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1613,7 +1613,7 @@ export default function AdminPage() {
                       onClick={() => setPerfPeriod(p.id)}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                         perfPeriod === p.id
-                          ? "bg-violet-600 text-white shadow"
+                          ? "bg-[#C9F80D] text-zinc-950 shadow"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1624,7 +1624,7 @@ export default function AdminPage() {
                 <select
                   value={perfSort}
                   onChange={(e) => setPerfSort(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500"
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#C9F80D]"
                 >
                   <option value="gasto">↓ Gasto</option>
                   <option value="conversas">↓ Conversas</option>
@@ -1692,7 +1692,7 @@ export default function AdminPage() {
                     onClick={() => setCreativesPeriod(p.id)}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                       creativesPeriod === p.id
-                        ? "bg-violet-600 text-white shadow"
+                        ? "bg-[#C9F80D] text-zinc-950 shadow"
                         : "text-zinc-500 hover:text-zinc-300"
                     }`}
                   >
@@ -1810,14 +1810,14 @@ export default function AdminPage() {
                       placeholder="Filtrar campanha..."
                       value={campFilter}
                       onChange={(e) => setCampFilter(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 text-zinc-300 placeholder-zinc-600 text-xs rounded-xl pl-8 pr-3 py-2 w-44 focus:outline-none focus:border-violet-500"
+                      className="bg-zinc-900 border border-zinc-800 text-zinc-300 placeholder-zinc-600 text-xs rounded-xl pl-8 pr-3 py-2 w-44 focus:outline-none focus:border-[#C9F80D]"
                     />
                   </div>
                   {/* Sort */}
                   <select
                     value={campSort}
                     onChange={(e) => setCampSort(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-violet-500"
+                    className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-[#C9F80D]"
                   >
                     <option value="gasto">↓ Gasto</option>
                     <option value="conversas">↓ Conversas</option>
@@ -1836,7 +1836,7 @@ export default function AdminPage() {
                         onClick={() => setCampPeriod(p.id)}
                         className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
                           campPeriod === p.id
-                            ? "bg-violet-600 text-white shadow"
+                            ? "bg-[#C9F80D] text-zinc-950 shadow"
                             : "text-zinc-500 hover:text-zinc-300"
                         }`}
                       >
@@ -2038,7 +2038,7 @@ export default function AdminPage() {
                         value={alertForm.clientId}
                         onChange={(e) => setAlertForm((f) => ({ ...f, clientId: e.target.value }))}
                         required
-                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                       >
                         <option value="">Selecionar cliente...</option>
                         {clients.map((c) => (
@@ -2051,7 +2051,7 @@ export default function AdminPage() {
                       <select
                         value={alertForm.metric}
                         onChange={(e) => setAlertForm((f) => ({ ...f, metric: e.target.value }))}
-                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                       >
                         {METRICS.map((m) => (
                           <option key={m.value} value={m.value}>{m.label}</option>
@@ -2064,7 +2064,7 @@ export default function AdminPage() {
                         <select
                           value={alertForm.operator}
                           onChange={(e) => setAlertForm((f) => ({ ...f, operator: e.target.value }))}
-                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                         >
                           {OPERATORS.map((o) => (
                             <option key={o.value} value={o.value}>{o.label}</option>
@@ -2082,7 +2082,7 @@ export default function AdminPage() {
                           value={alertForm.threshold}
                           onChange={(e) => setAlertForm((f) => ({ ...f, threshold: e.target.value }))}
                           required
-                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 placeholder-zinc-600 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 placeholder-zinc-600 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                         />
                       </div>
                     </div>
@@ -2114,7 +2114,7 @@ export default function AdminPage() {
                         </svg>
                         <p className="text-xs text-zinc-400">
                           Alertar quando <span className="text-white font-medium">{metricLabel(alertForm.metric)}</span>{" "}
-                          <span className="text-violet-400 font-medium">{opLabel(alertForm.operator)} {alertForm.threshold}{metricUnit(alertForm.metric)}</span>
+                          <span className="text-[#C9F80D] font-medium">{opLabel(alertForm.operator)} {alertForm.threshold}{metricUnit(alertForm.metric)}</span>
                         </p>
                       </div>
                     )}
@@ -2122,7 +2122,7 @@ export default function AdminPage() {
                     <button
                       type="submit"
                       disabled={alertSaving}
-                      className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition mt-1"
+                      className="w-full bg-[#C9F80D] hover:bg-[#b8e00c] disabled:opacity-50 text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2.5 transition mt-1"
                     >
                       {alertSaving ? "Salvando..." : "Criar regra"}
                     </button>
@@ -2170,7 +2170,7 @@ export default function AdminPage() {
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm text-white">
                                       <span className="text-zinc-400">{metricLabel(rule.metric)}</span>
-                                      {" "}<span className="font-bold text-violet-400">{opLabel(rule.operator)}</span>{" "}
+                                      {" "}<span className="font-bold text-[#C9F80D]">{opLabel(rule.operator)}</span>{" "}
                                       <span className="font-semibold tabular-nums">
                                         {["cpl","gasto","cpm"].includes(rule.metric) ? `R$ ${rule.threshold}` : `${rule.threshold}${metricUnit(rule.metric)}`}
                                       </span>
@@ -2321,7 +2321,7 @@ export default function AdminPage() {
                         value={schedForm.clientId}
                         onChange={(e) => setSchedForm((f) => ({ ...f, clientId: e.target.value }))}
                         required
-                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                       >
                         <option value="">Selecionar cliente...</option>
                         {clients.map((c) => (
@@ -2337,7 +2337,7 @@ export default function AdminPage() {
                         value={schedForm.email}
                         onChange={(e) => setSchedForm((f) => ({ ...f, email: e.target.value }))}
                         required
-                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 placeholder-zinc-600 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 placeholder-zinc-600 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -2346,7 +2346,7 @@ export default function AdminPage() {
                         <select
                           value={schedForm.period}
                           onChange={(e) => setSchedForm((f) => ({ ...f, period: e.target.value }))}
-                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                         >
                           <option value="daily">Diário (ontem)</option>
                           <option value="weekly">Semanal</option>
@@ -2358,7 +2358,7 @@ export default function AdminPage() {
                         <select
                           value={schedForm.dayOfWeek}
                           onChange={(e) => setSchedForm((f) => ({ ...f, dayOfWeek: e.target.value }))}
-                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                          className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#C9F80D]"
                         >
                           {DOW.map((d, i) => <option key={i} value={i}>{d}</option>)}
                         </select>
@@ -2367,7 +2367,7 @@ export default function AdminPage() {
                     <button
                       type="submit"
                       disabled={schedSaving}
-                      className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition mt-1"
+                      className="w-full bg-[#C9F80D] hover:bg-[#b8e00c] disabled:opacity-50 text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2.5 transition mt-1"
                     >
                       {schedSaving ? "Salvando..." : "Criar agendamento"}
                     </button>
@@ -2411,7 +2411,7 @@ export default function AdminPage() {
                                 <button
                                   onClick={() => handleSendNow(s.id)}
                                   disabled={schedSendingId === s.id}
-                                  className="p-1.5 bg-zinc-800 hover:bg-violet-600 rounded-lg text-zinc-400 hover:text-white transition"
+                                  className="p-1.5 bg-zinc-800 hover:bg-[#C9F80D] rounded-lg text-zinc-400 hover:text-zinc-950 transition"
                                   title="Enviar agora"
                                 >
                                   {schedSendingId === s.id
@@ -2456,7 +2456,7 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold">Conexões & API</h2>
               <button
                 onClick={() => setModal("new")}
-                className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition"
+                className="flex items-center gap-2 bg-[#C9F80D] hover:bg-[#b8e00c] text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2.5 transition"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

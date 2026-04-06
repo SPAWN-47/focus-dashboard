@@ -201,7 +201,7 @@
   }
 
   .text-gradient-animate {
-    background: linear-gradient(270deg, #c4b5fd, #8b5cf6, #7c3aed, #a78bfa, #8b5cf6);
+    background: linear-gradient(270deg, #e5ff6b, #C9F80D, #a8d000, #d4ff3a, #C9F80D);
     background-size: 300% 300%;
     animation: gradient-shift 5s ease infinite;
     -webkit-background-clip: text;

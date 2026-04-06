@@ -32,14 +32,14 @@ const Logo = ({ className = "" }) => (
     <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
     <path d="M9 8.75h6" />
     <path d="M9 11.75h4.5" />
-    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
 
 // ── Step header with number ──────────────────────────────────────────────────
 const StepHeader = ({ number, icon: Icon, title, color = "violet" }) => {
   const colorMap = {
-    violet: "bg-violet-600/15 border-violet-600/40 text-violet-400",
+    violet: "bg-[#C9F80D]/10 border-[#C9F80D]/40 text-[#C9F80D]",
     cyan: "bg-cyan-500/15 border-cyan-500/40 text-cyan-400",
     green: "bg-emerald-500/15 border-emerald-500/40 text-emerald-400",
     amber: "bg-amber-500/15 border-amber-500/40 text-amber-400",
@@ -51,8 +51,8 @@ const StepHeader = ({ number, icon: Icon, title, color = "violet" }) => {
 
   return (
     <div className="flex items-center gap-4 mb-6">
-      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-600/20 border-2 border-violet-500 shrink-0">
-        <span className="text-sm font-bold text-violet-300 font-mono">{number}</span>
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#C9F80D]/15 border-2 border-[#C9F80D]/50 shrink-0">
+        <span className="text-sm font-bold text-[#C9F80D] font-mono">{number}</span>
       </div>
       <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${cls}`}>
         {Icon && <Icon className="w-4 h-4 shrink-0" />}
@@ -75,7 +75,7 @@ const DemoKpiCard = ({ icon: Icon, label, value, delta, deltaLabel, positive, co
     cyan: { bg: "bg-cyan-500/10", border: "border-cyan-500/20", text: "text-cyan-400" },
     green: { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-400" },
     orange: { bg: "bg-orange-500/10", border: "border-orange-500/20", text: "text-orange-400" },
-    violet: { bg: "bg-violet-500/10", border: "border-violet-500/20", text: "text-violet-400" },
+    violet: { bg: "bg-[#C9F80D]/10", border: "border-[#C9F80D]/20", text: "text-[#C9F80D]" },
   };
   const c = colorMap[color] || colorMap.violet;
 
@@ -166,7 +166,7 @@ const DemoSparkline = () => (
       <span className="text-sm font-semibold text-zinc-300">Tendencia 30 dias</span>
       <div className="flex items-center gap-4 text-xs text-zinc-500">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-0.5 bg-violet-500 inline-block rounded" /> Investimento
+          <span className="w-3 h-0.5 bg-[#C9F80D] inline-block rounded" /> Investimento
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-0.5 bg-emerald-500 inline-block rounded" /> Conversas
@@ -182,7 +182,7 @@ const DemoSparkline = () => (
       <path
         d="M0,55 C20,50 40,45 60,40 S100,30 130,35 S170,28 200,22 S240,30 270,25 S310,20 340,15 S370,18 400,12"
         fill="none"
-        stroke="#8b5cf6"
+        stroke="#C9F80D"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -216,7 +216,7 @@ const DemoBarChart = () => {
         <span className="text-sm font-semibold text-zinc-300">Distribuicao de Cliques — 21 dias</span>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-2.5 bg-violet-600/70 inline-block rounded-sm" /> Cliques
+            <span className="w-3 h-2.5 bg-[#C9F80D]/70 inline-block rounded-sm" /> Cliques
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-2.5 bg-emerald-500/70 inline-block rounded-sm" /> Conversas
@@ -227,7 +227,7 @@ const DemoBarChart = () => {
         {bars.map((h, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
             <div
-              className="w-full bg-violet-600/60 rounded-sm"
+              className="w-full bg-[#C9F80D]/60 rounded-sm"
               style={{ height: `${(h / 100) * 60}px` }}
             />
             <div
@@ -286,7 +286,7 @@ const MetricRow = ({ label, description, color = "zinc" }) => {
     cyan: "bg-cyan-500 ",
     green: "bg-emerald-500",
     orange: "bg-orange-500",
-    violet: "bg-violet-500",
+    violet: "bg-[#C9F80D]",
     zinc: "bg-zinc-500",
   };
 
@@ -306,7 +306,7 @@ const FunnelRow = ({ label, formula, benchmark, explanation, color }) => {
   const colorMap = {
     cyan: "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
     green: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-    violet: "bg-violet-500/10 border-violet-500/20 text-violet-400",
+    violet: "bg-[#C9F80D]/10 border-[#C9F80D]/20 text-[#C9F80D]",
   };
   const cls = colorMap[color] || colorMap.violet;
 
@@ -341,7 +341,7 @@ const Section = ({ children, index }) => (
 // ── Score bar ────────────────────────────────────────────────────────────────
 const ScoreBar = ({ label, pts, color }) => {
   const colorMap = {
-    violet: "bg-violet-500",
+    violet: "bg-[#C9F80D]",
     green: "bg-emerald-500",
     cyan: "bg-cyan-500",
     orange: "bg-orange-500",
@@ -402,13 +402,13 @@ export default function GuidePage() {
 
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
-              <Logo className="w-4 h-4 text-violet-500" />
+              <Logo className="w-4 h-4 text-[#C9F80D]" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus<span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-[#C9F80D]">Dashboard</span>
             </span>
             <span className="text-zinc-600 hidden sm:block">|</span>
-            <span className="text-sm font-semibold hidden sm:block text-violet-400">Guia</span>
+            <span className="text-sm font-semibold hidden sm:block text-[#C9F80D]">Guia</span>
           </div>
 
           <div className="ml-2 sm:ml-4 overflow-hidden">
@@ -437,7 +437,7 @@ export default function GuidePage() {
           transition={{ duration: 0.5 }}
           className="text-center pb-8"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-600/10 border border-violet-600/20 rounded-full text-violet-400 text-xs font-semibold mb-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#C9F80D]/10 border border-[#C9F80D]/20 rounded-full text-[#C9F80D] text-xs font-semibold mb-5">
             <BookOpen className="w-3.5 h-3.5" />
             Guia do cliente
           </div>
@@ -450,7 +450,7 @@ export default function GuidePage() {
           {user && (
             <p className="mt-4 text-sm text-zinc-500">
               Olá,{" "}
-              <span className="text-violet-400 font-medium">{user.name || user.username}</span>
+              <span className="text-[#C9F80D] font-medium">{user.name || user.username}</span>
             </p>
           )}
         </motion.div>
@@ -459,7 +459,7 @@ export default function GuidePage() {
         <Section index={0}>
           <StepHeader number="1" icon={Layers} title="O que é o FocusDashboard" color="violet" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O <span className="text-violet-400 font-semibold">FocusDashboard</span> é o seu painel de controle de campanhas. Aqui você acompanha em tempo real os resultados de todos os seus anúncios — sem precisar entrar no Meta Ads, Google Ads ou Google Meu Negócio separadamente.
+            O <span className="text-[#C9F80D] font-semibold">FocusDashboard</span> é o seu painel de controle de campanhas. Aqui você acompanha em tempo real os resultados de todos os seus anúncios — sem precisar entrar no Meta Ads, Google Ads ou Google Meu Negócio separadamente.
           </p>
           <div className="grid sm:grid-cols-3 gap-3">
             {[
@@ -497,8 +497,8 @@ export default function GuidePage() {
               },
             ].map((step) => (
               <div key={step.n} className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-600/40 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-bold text-violet-400">{step.n}</span>
+                <div className="w-8 h-8 rounded-full bg-[#C9F80D]/10 border border-[#C9F80D]/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-[#C9F80D]">{step.n}</span>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-200">{step.title}</p>
@@ -558,13 +558,13 @@ export default function GuidePage() {
               <p className="text-xs font-mono text-cyan-400/70 mb-2">Ontem</p>
               <p className="text-xs text-cyan-300/60 leading-relaxed">Ideal para verificar rapidamente o que aconteceu no dia anterior.</p>
             </div>
-            <div className="border border-violet-500/30 bg-violet-500/5 rounded-xl p-4">
+            <div className="border border-[#C9F80D]/30 bg-[#C9F80D]/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full bg-violet-500" />
-                <span className="text-sm font-bold text-violet-300">Semanal</span>
+                <span className="w-2 h-2 rounded-full bg-[#C9F80D]" />
+                <span className="text-sm font-bold text-[#C9F80D]">Semanal</span>
               </div>
-              <p className="text-xs font-mono text-violet-400/70 mb-2">Últimos 7 dias</p>
-              <p className="text-xs text-violet-300/60 leading-relaxed">Bom para ver tendências da semana e comparar com a semana anterior.</p>
+              <p className="text-xs font-mono text-[#C9F80D]/70 mb-2">Últimos 7 dias</p>
+              <p className="text-xs text-[#C9F80D]/60 leading-relaxed">Bom para ver tendências da semana e comparar com a semana anterior.</p>
             </div>
             <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -803,7 +803,7 @@ export default function GuidePage() {
           <p className="text-zinc-500 text-sm mb-5">Acompanhe seus resultados em tempo real</p>
           <a
             href="/dashboard"
-            className="inline-flex items-center gap-2.5 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl transition-colors text-sm shadow-lg shadow-violet-900/30"
+            className="inline-flex items-center gap-2.5 px-6 py-3 bg-[#C9F80D] hover:bg-[#b8e00c] text-zinc-950 font-semibold rounded-xl transition-colors text-sm shadow-lg shadow-[#C9F80D]/20"
           >
             <Layers className="w-4 h-4" />
             Ir para o Dashboard
@@ -815,8 +815,8 @@ export default function GuidePage() {
       <footer className="border-t border-zinc-800 mt-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Logo className="w-4 h-4 text-violet-500" />
-            <span className="text-sm font-bold">Focus<span className="text-violet-500">Dashboard</span></span>
+            <Logo className="w-4 h-4 text-[#C9F80D]" />
+            <span className="text-sm font-bold">Focus<span className="text-[#C9F80D]">Dashboard</span></span>
           </div>
           <p className="text-xs text-zinc-600">
             Focus Dashboard — Plataforma de analytics de tráfego pago

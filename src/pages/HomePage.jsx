@@ -18,7 +18,7 @@ const FocusPageLogo = ({ className = "" }) => (
     <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
     <path d="M9 8.75h6" />
     <path d="M9 11.75h4.5" />
-    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
 
@@ -44,10 +44,10 @@ const CustomCursor = () => {
 
   return (
     <motion.div
-      className="fixed top-0 left-0 w-8 h-8 rounded-full border border-violet-500/50 pointer-events-none z-[100] hidden md:flex items-center justify-center bg-violet-500/10 backdrop-blur-[2px]"
+      className="fixed top-0 left-0 w-8 h-8 rounded-full border border-[#C9F80D]/50 pointer-events-none z-[100] hidden md:flex items-center justify-center bg-[#C9F80D]/10 backdrop-blur-[2px]"
       style={{ x: springX, y: springY }}
     >
-      <div className="w-1.5 h-1.5 bg-violet-400 rounded-full" />
+      <div className="w-1.5 h-1.5 bg-[#C9F80D] rounded-full" />
     </motion.div>
   );
 };
@@ -120,8 +120,8 @@ function MobileHeroIndicators() {
       hint: "text-emerald-300/85",
     },
     violet: {
-      iconWrap: "border-violet-300/30 bg-violet-400/10 text-violet-200",
-      hint: "text-violet-300/85",
+      iconWrap: "border-[#C9F80D]/30 bg-[#C9F80D]/10 text-[#C9F80D]",
+      hint: "text-[#C9F80D]/85",
     },
   };
 
@@ -182,14 +182,14 @@ function DesktopHeroIndicators() {
       </div>
 
       <div className="flex flex-col items-center justify-center px-4 py-8">
-        <span className="mb-3 rounded-xl border border-violet-300/30 bg-violet-400/10 p-2.5 text-violet-200">
+        <span className="mb-3 rounded-xl border border-[#C9F80D]/30 bg-[#C9F80D]/10 p-2.5 text-[#C9F80D]">
           <ShieldCheck className="h-4 w-4" />
         </span>
         <span className="text-4xl md:text-5xl font-extrabold text-zinc-100 tracking-tight drop-shadow-sm">
           <AnimatedNumber value={0} suffix="" />
         </span>
         <span className="mt-2 text-center text-sm md:text-base leading-tight text-zinc-300 font-semibold">Oscilação de Humor na Resposta</span>
-        <span className="mt-2 text-[10px] uppercase tracking-[0.16em] text-violet-300/85">tom consistente</span>
+        <span className="mt-2 text-[10px] uppercase tracking-[0.16em] text-[#C9F80D]/85">tom consistente</span>
       </div>
     </div>
   );
@@ -545,9 +545,9 @@ export default function FocusMidiaLandingPage() {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="relative min-h-screen bg-zinc-950 text-zinc-100 selection:bg-violet-500/30 font-sans overflow-x-hidden">
+      <div className="relative min-h-screen bg-zinc-950 text-zinc-100 selection:bg-[#C9F80D]/30 font-sans overflow-x-hidden">
         <motion.div
-          className="fixed top-0 left-0 right-0 h-1 bg-violet-500 origin-left z-[100]"
+          className="fixed top-0 left-0 right-0 h-1 bg-[#C9F80D] origin-left z-[100]"
           style={{ scaleX }}
         />
 
@@ -565,15 +565,15 @@ export default function FocusMidiaLandingPage() {
         >
           <div className="pointer-events-auto flex w-[calc(100%-2rem)] max-w-md items-center justify-between gap-4 rounded-full border border-zinc-700/50 bg-zinc-900/70 px-4 py-3.5 shadow-[0_10px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:w-auto sm:max-w-none sm:justify-start sm:gap-8 sm:px-6">
             <a href="#" className="flex items-center gap-2 group cursor-pointer">
-              <div className="bg-zinc-950 p-2 sm:p-1.5 rounded-full sm:rounded-md border border-zinc-800 group-hover:border-violet-500/50 transition-colors shadow-inner flex items-center justify-center">
-                <FocusPageLogo className="w-5 h-5 sm:w-4 sm:h-4 text-violet-500 sm:text-zinc-100 group-hover:text-violet-400 transition-colors" />
+              <div className="bg-zinc-950 p-2 sm:p-1.5 rounded-full sm:rounded-md border border-zinc-800 group-hover:border-[#C9F80D]/50 transition-colors shadow-inner flex items-center justify-center">
+                <FocusPageLogo className="w-5 h-5 sm:w-4 sm:h-4 text-[#C9F80D] sm:text-zinc-100 group-hover:text-[#C9F80D]/80 transition-colors" />
               </div>
               <span className="block text-base font-bold tracking-tighter sm:text-lg">
-                Chat<span className="text-violet-500">Focus</span>
+                Chat<span className="text-[#C9F80D]">Focus</span>
               </span>
             </a>
 
-            <a href="#contato" className="btn-metallic flex items-center justify-center text-sm font-semibold bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 px-4 sm:px-5 py-2 rounded-full border border-violet-500/20 transition-colors whitespace-nowrap">
+            <a href="#contato" className="btn-metallic flex items-center justify-center text-sm font-semibold bg-[#C9F80D]/10 hover:bg-[#C9F80D]/20 text-[#C9F80D] px-4 sm:px-5 py-2 rounded-full border border-[#C9F80D]/20 transition-colors whitespace-nowrap">
               Falar com Especialista
             </a>
           </div>
@@ -585,7 +585,7 @@ export default function FocusMidiaLandingPage() {
           <motion.div
             animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-violet-500/20 blur-[120px] rounded-full pointer-events-none"
+            className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-[#C9F80D]/10 blur-[120px] rounded-full pointer-events-none"
           />
           {/* Orbs secundários */}
           <motion.div
@@ -601,13 +601,13 @@ export default function FocusMidiaLandingPage() {
           <motion.div
             animate={{ opacity: [0.05, 0.12, 0.05], y: [0, -10, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute bottom-1/4 left-1/3 w-[120px] h-[120px] md:w-[200px] md:h-[200px] bg-violet-400/10 blur-[60px] rounded-full pointer-events-none"
+            className="absolute bottom-1/4 left-1/3 w-[120px] h-[120px] md:w-[200px] md:h-[200px] bg-[#C9F80D]/5 blur-[60px] rounded-full pointer-events-none"
           />
 
           <div className="relative z-10 w-full max-w-md md:max-w-4xl mx-auto flex flex-col items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs md:text-sm font-medium mb-5 md:mb-6"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C9F80D]/10 border border-[#C9F80D]/20 text-[#C9F80D] text-xs md:text-sm font-medium mb-5 md:mb-6"
             >
               <Zap className="h-3.5 w-3.5 md:h-4 md:w-4" /> Atendimento com IA para Empresas Locais
             </motion.div>
@@ -617,13 +617,13 @@ export default function FocusMidiaLandingPage() {
               className="text-[2rem] sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]"
             >
               Sua empresa atendendo melhor, <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-violet-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9F80D] to-[#a8d000]">
                 sem depender de mais gente.{" "}
               </span>
               <br />
               <Typewriter
                 words={["Sem fila.", "Sem mau humor.", "Sem horário limitado."]}
-                className="text-violet-400"
+                className="text-[#C9F80D]"
               />
             </motion.h1>
 
@@ -638,7 +638,7 @@ export default function FocusMidiaLandingPage() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}
               className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto"
             >
-              <a href="#contato" className="btn-metallic flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-semibold bg-violet-500/20 backdrop-blur-md border border-violet-500/50 text-violet-50 hover:bg-violet-500/30 hover:border-violet-400/80 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all duration-300">
+              <a href="#contato" className="btn-metallic flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-semibold bg-[#C9F80D]/20 backdrop-blur-md border border-[#C9F80D]/50 text-zinc-100 hover:bg-[#C9F80D]/30 hover:border-[#C9F80D]/80 hover:shadow-[0_0_20px_rgba(201,248,13,0.35)] transition-all duration-300">
                 Quero automatizar meu atendimento <ArrowRight className="h-4 w-4" />
               </a>
               <a href="#portfolio" className="btn-metallic flex items-center justify-center px-6 md:px-8 py-3.5 md:py-4 rounded-xl font-semibold bg-white/5 backdrop-blur-md border border-white/10 text-zinc-100 hover:bg-white/10 hover:border-white/20 transition-all duration-300">

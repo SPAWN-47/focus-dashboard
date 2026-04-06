@@ -16,7 +16,7 @@ const Logo = ({ className = "" }) => (
     <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
     <path d="M9 8.75h6" />
     <path d="M9 11.75h4.5" />
-    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
 
@@ -121,7 +121,7 @@ function ReviewCard({ review, delay = 0 }) {
           {isLong && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="ml-1 text-violet-400 text-xs hover:underline"
+              className="ml-1 text-[#C9F80D] text-xs hover:underline"
             >
               {expanded ? "ver menos" : "ver mais"}
             </button>
@@ -237,10 +237,10 @@ export default function GmbDashboardPage() {
           {/* Logo + título */}
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
-              <Logo className="w-4 h-4 text-violet-500" />
+              <Logo className="w-4 h-4 text-[#C9F80D]" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus<span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-[#C9F80D]">Dashboard</span>
             </span>
             <span className="text-zinc-600 hidden sm:block">|</span>
             <span className="text-sm font-semibold hidden sm:block" style={{ color: GMB_GREEN }}>
@@ -566,10 +566,10 @@ export default function GmbDashboardPage() {
         >
           <div className="flex items-center gap-2">
             <div className="bg-zinc-900 p-1 rounded border border-zinc-800">
-              <Logo className="w-3.5 h-3.5 text-violet-500" />
+              <Logo className="w-3.5 h-3.5 text-[#C9F80D]" />
             </div>
             <span className="text-xs text-zinc-500">
-              Focus<span className="text-violet-500 font-semibold">Dashboard</span>
+              Focus<span className="text-[#C9F80D] font-semibold">Dashboard</span>
               {" "}— Google Meu Negócio
             </span>
           </div>
