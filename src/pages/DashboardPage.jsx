@@ -714,7 +714,7 @@ export default function DashboardPage() {
             <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
             <div className="flex items-center gap-2 mt-1.5">
               {currentClient.name && (
-                <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border border-zinc-700 text-zinc-400 bg-zinc-900 font-mono">
+                <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border bg-zinc-900 font-mono" style={{ color: "#C9F80D", borderColor: "#C9F80D40" }}>
                   {currentClient.name}
                 </span>
               )}

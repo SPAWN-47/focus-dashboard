@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft, LogOut, Search, TrendingUp, TrendingDown,
   MousePointer, Eye, Target, DollarSign, BarChart3, Zap,
-  ChevronDown, ChevronUp, Settings, PlayCircle,
+  ChevronDown, ChevronUp, Settings, PlayCircle, FileDown, RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -74,6 +74,34 @@ const fBRL0 = (v) =>
 const fNum = (v) => (v || 0).toLocaleString("pt-BR");
 
 const fPct = (v) => `${(v || 0).toFixed(2)}%`;
+
+// ─────────────────────────────────────────────
+// DATE RANGE HELPER
+// ─────────────────────────────────────────────
+
+function getDateRange(period) {
+  const today = new Date();
+  if (period === "daily") {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 1);
+    return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+  if (period === "weekly") {
+    const day = today.getDay();
+    const lastMon = new Date(today);
+    lastMon.setDate(today.getDate() - ((day + 6) % 7) - 7);
+    const lastSun = new Date(lastMon);
+    lastSun.setDate(lastMon.getDate() + 6);
+    const fmt = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    return `${fmt(lastMon)} – ${fmt(lastSun)}/${lastSun.getFullYear()}`;
+  }
+  if (period === "monthly") {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const str = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
+  return "";
+}
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -350,6 +378,7 @@ export default function GoogleDashboardPage() {
 
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
+  const [exporting,  setExporting]  = useState(false);
   const [data,       setData]       = useState(null);      // /api/google/insights
   const [trendData,  setTrendData]  = useState(null);      // /api/google/trend
   const [campaigns,  setCampaigns]  = useState(null);      // /api/google/campaigns
@@ -368,6 +397,32 @@ export default function GoogleDashboardPage() {
   // Derive the client ID — admins must pass ?client= in the URL
   const params    = new URLSearchParams(window.location.search);
   const clientId  = user.role === "client" ? user.clientId : (params.get("client") || user.clientId);
+
+  const handleExportMonthly = async () => {
+    if (!clientId || exporting) return;
+    setExporting(true);
+    try {
+      const res  = await authFetch(`/api/report/monthly?client=${clientId}`);
+      const json = await res.json();
+      if (!json.html) throw new Error(json.error || "Erro ao gerar relatório");
+      const blob = new Blob([json.html], { type: "text/html;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const win  = window.open(url, "_blank");
+      if (!win) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "relatorio-mensal-google.html";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch (err) {
+      alert(`Não foi possível gerar o relatório:\n${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     if (!clientId) {
@@ -592,28 +647,63 @@ export default function GoogleDashboardPage() {
                 <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
                 <div className="flex items-center gap-2 mt-1.5">
                   {data?.client && (
-                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border border-zinc-700 text-zinc-400 bg-zinc-900 font-mono">
+                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border bg-zinc-900 font-mono" style={{ color: "#C9F80D", borderColor: "#C9F80D40" }}>
                       {data.client}
                     </span>
                   )}
                   <span className="text-xs text-zinc-600">Campanhas Google Ads</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 self-start">
-                {PERIODS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setPeriod(p.id)}
-                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      period === p.id
-                        ? "text-zinc-100 border border-zinc-700"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                    style={period === p.id ? { background: GOOGLE_BLUE + "22" } : {}}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Period selector */}
+                <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+                  {PERIODS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPeriod(p.id)}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        period === p.id
+                          ? "text-zinc-100 border border-zinc-700"
+                          : "text-zinc-400 hover:text-zinc-200"
+                      }`}
+                      style={period === p.id ? { background: GOOGLE_BLUE + "22" } : {}}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Date range badge */}
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl">
+                  <svg className="w-3.5 h-3.5 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span className="text-xs font-medium text-zinc-300">
+                    {getDateRange(period)}
+                  </span>
+                </div>
+
+                {/* Export */}
+                <button
+                  onClick={handleExportMonthly}
+                  disabled={exporting || !clientId}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: exporting ? "#7c3aed22" : "#7c3aed15",
+                    borderColor: "#7c3aed50",
+                    color: "#a78bfa",
+                  }}
+                  title="Exportar relatório mensal"
+                >
+                  {exporting
+                    ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    : <FileDown className="w-3.5 h-3.5" />
+                  }
+                  <span className="hidden sm:inline">{exporting ? "Gerando..." : "Exportar Relatório"}</span>
+                </button>
               </div>
             </motion.div>
 
