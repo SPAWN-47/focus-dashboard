@@ -1504,9 +1504,16 @@ app.get("/api/google/keywords", async (req, res) => {
 // Saves "accounts/xxx/locations/yyy" back to clients.json so future requests
 // never need to call mybusinessaccountmanagement.googleapis.com again.
 
+// Per-client lock so concurrent requests don't each fire a separate upgrade attempt
+const _upgradeGmbInProgress = new Set();
+
 async function upgradeGmbLocationId(clientId, currentRaw) {
   // Already a full path — nothing to do
   if (/^accounts\/\d+\/locations\/\d+$/.test((currentRaw || "").trim())) return;
+
+  // Another request for this client is already upgrading — skip duplicate
+  if (_upgradeGmbInProgress.has(clientId)) return;
+  _upgradeGmbInProgress.add(clientId);
 
   try {
     const { locationName } = await resolveLocationId(currentRaw);
@@ -1521,6 +1528,8 @@ async function upgradeGmbLocationId(clientId, currentRaw) {
   } catch (e) {
     // Non-fatal — just log, don't block the request
     console.warn("[gmb] Could not auto-upgrade location ID:", e.message);
+  } finally {
+    _upgradeGmbInProgress.delete(clientId);
   }
 }
 
@@ -1665,17 +1674,20 @@ app.get("/api/gmb/locations", async (req, res) => {
   }
 
   try {
-    const accounts  = await getGmbAccounts();
-    const result    = [];
+    // Usa getDefaultAccountName (que tem backoff de quota) em vez de chamar
+    // getGmbAccounts diretamente, para não furar o rate-limit de 2 RPM
+    const accountName = await getDefaultAccountName();
+    const accounts    = [{ name: accountName }];
+    const result      = [];
 
     for (const account of accounts) {
       const locations = await getGmbLocations(account.name);
       for (const loc of locations) {
         result.push({
-          locationName:  loc.name,   // "accounts/.../locations/..."
-          title:         loc.title || loc.locationName,
-          accountName:   account.accountName || account.name,
-          websiteUri:    loc.websiteUri || "",
+          locationName: loc.name,
+          title:        loc.title || loc.locationName,
+          accountName:  account.name,
+          websiteUri:   loc.websiteUri || "",
         });
       }
     }
