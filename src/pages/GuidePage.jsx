@@ -13,6 +13,7 @@ import {
   Bell,
   FileText,
   LogIn,
+  LogOut,
   Users,
   CalendarDays,
   ChevronDown,
@@ -25,31 +26,13 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
 
-// ── Grid icon for logo ──────────────────────────────────────────────────────
-const GridIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="w-5 h-5 text-white"
-  >
-    <rect x="3" y="3" width="7" height="7" />
-    <rect x="14" y="3" width="7" height="7" />
-    <rect x="3" y="14" width="7" height="7" />
-    <rect x="14" y="14" width="7" height="7" />
+const Logo = ({ className = "" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
+    <path d="M9 8.75h6" />
+    <path d="M9 11.75h4.5" />
+    <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
   </svg>
-);
-
-const Logo = () => (
-  <div className="flex items-center gap-2.5">
-    <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center shrink-0">
-      <GridIcon />
-    </div>
-    <span className="text-lg font-bold text-white tracking-tight">Focus Dashboard</span>
-  </div>
 );
 
 // ── Step header with number ──────────────────────────────────────────────────
@@ -406,18 +389,40 @@ export default function GuidePage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
 
       {/* HEADER */}
-      <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0 text-xs"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:block">Meta</span>
+          </a>
+
+          <div className="flex items-center gap-2">
+            <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
+              <Logo className="w-4 h-4 text-violet-500" />
+            </div>
+            <span className="text-sm font-bold tracking-tight hidden sm:block">
+              Focus<span className="text-violet-500">Dashboard</span>
+            </span>
+            <span className="text-zinc-600 hidden sm:block">|</span>
+            <span className="text-sm font-semibold hidden sm:block text-violet-400">Guia</span>
+          </div>
+
+          <div className="ml-4">
             <PlatformNav active="guide" />
-            <a
-              href="/"
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition-colors text-sm"
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-zinc-500 hidden sm:block">{user.name}</span>
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              title="Sair"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </a>
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </header>

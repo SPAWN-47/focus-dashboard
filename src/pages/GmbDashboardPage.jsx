@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import {
   LogOut, Star, MapPin, Phone, Globe, TrendingUp,
-  Eye, Navigation, Search, Settings, MessageCircle,
+  Eye, Navigation, Search, Settings, MessageCircle, ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -217,6 +217,14 @@ export default function GmbDashboardPage() {
       {/* ── HEADER — mesmo padrão do Google Ads ── */}
       <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+
+          <a
+            href="/dashboard"
+            className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition-colors shrink-0 text-xs"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:block">Meta</span>
+          </a>
 
           {/* Logo + título */}
           <div className="flex items-center gap-2">

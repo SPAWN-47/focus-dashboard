@@ -666,12 +666,14 @@ export default function DashboardPage() {
               <Logo className="w-4 h-4 text-violet-500" />
             </div>
             <span className="text-sm font-bold tracking-tight hidden sm:block">
-              Focus <span className="text-violet-500">Dashboard</span>
+              Focus<span className="text-violet-500">Dashboard</span>
             </span>
+            <span className="text-zinc-600 hidden sm:block">|</span>
+            <span className="text-sm font-semibold hidden sm:block text-sky-400">Meta</span>
           </div>
 
           {/* Platform Tabs */}
-          <div className="ml-2">
+          <div className="ml-4">
             <PlatformNav active="meta" />
           </div>
 

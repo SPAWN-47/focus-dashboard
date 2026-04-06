@@ -1322,37 +1322,44 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-900/50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-zinc-900 p-1.5 rounded-md border border-zinc-800">
+              <svg className="w-4 h-4 text-violet-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 3v-3.5A2.5 2.5 0 0 1 5 12.5z" />
+                <path d="M9 8.75h6" />
+                <path d="M9 11.75h4.5" />
+                <circle cx="17.5" cy="17.5" r="2.5" fill="#8b5cf6" stroke="none" />
               </svg>
             </div>
-            <div>
-              <span className="font-bold text-white">Focus Dashboard</span>
-              <span className="ml-2 text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5">
-                Admin
-              </span>
+            <span className="text-sm font-bold tracking-tight hidden sm:block">
+              Focus<span className="text-violet-500">Dashboard</span>
+            </span>
+            <span className="text-zinc-600 hidden sm:block">|</span>
+            <span className="text-xs bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 hidden sm:block">
+              Admin
+            </span>
             {anomalies !== null && anomalies.length > 0 && (
-              <span className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 {anomalies.length}
               </span>
             )}
-            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-400">{user?.name}</span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-zinc-500 hidden sm:block">{user?.name}</span>
             <button
               onClick={logout}
-              className="text-zinc-400 hover:text-white text-sm transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              title="Sair"
             >
-              Sair
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
             </button>
           </div>
         </div>
