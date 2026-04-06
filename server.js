@@ -1579,7 +1579,7 @@ app.get("/api/gmb/insights", async (req, res) => {
     res.json(payload);
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
-    console.error("[gmb/insights]", errMsg);
+    console.error("[gmb/insights]", errMsg, err.response?.data || "");
     // Se é quota exceeded, retorna cache antigo (stale) se existir
     const isQuota = errMsg?.includes("Quota exceeded") || errMsg?.includes("quota");
     if (isQuota) {
@@ -1648,7 +1648,7 @@ app.get("/api/gmb/reviews", async (req, res) => {
   } catch (err) {
     const errMsg = err.response?.data?.error?.message || err.message;
     const statusCode = err.response?.status;
-    console.error("[gmb/reviews]", statusCode, errMsg);
+    console.error("[gmb/reviews]", statusCode, errMsg, err.response?.data || "");
 
     // API still pending Google approval (mybusinessreviews.googleapis.com requires special access)
     const isRestricted = errMsg?.includes("has not been used in project")
