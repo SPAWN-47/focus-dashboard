@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, ArrowRight, BarChart3, Target, Globe, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, BarChart3, Target, Globe, AlertCircle, Mail, CheckCircle2, X } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 const Logo = () => (
@@ -19,6 +19,105 @@ const features = [
   { icon: Globe,     label: "Meu Negócio", desc: "Avaliações e presença no Google Maps" },
 ];
 
+// ── Modal de recuperação de senha (fake — só UI) ──────────────────────────────
+function ForgotModal({ onClose }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    setSent(true);
+  }
+
+  return (
+    /* Backdrop */
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 12 }}
+        transition={{ type: "spring", stiffness: 200, damping: 22 }}
+        className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 relative"
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <AnimatePresence mode="wait">
+          {sent ? (
+            /* ── Success ── */
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center text-center pt-2 pb-1"
+            >
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: "#C9F80D15", border: "1px solid #C9F80D30" }}>
+                <CheckCircle2 className="w-7 h-7" style={{ color: "#C9F80D" }} />
+              </div>
+              <h3 className="text-base font-bold text-white mb-1.5">Email enviado!</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Enviamos um link de recuperação para<br />
+                <span className="text-zinc-200 font-medium">{email}</span>
+              </p>
+              <p className="text-xs text-zinc-600 mt-2">Verifique sua caixa de entrada e spam.</p>
+              <button
+                onClick={onClose}
+                className="mt-5 w-full font-semibold rounded-xl py-2.5 text-sm transition-all"
+                style={{ background: "#C9F80D", color: "#09090b" }}
+              >
+                Fechar
+              </button>
+            </motion.div>
+          ) : (
+            /* ── Form ── */
+            <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "#C9F80D15" }}>
+                  <Mail className="w-4 h-4" style={{ color: "#C9F80D" }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Recuperar senha</h3>
+                  <p className="text-xs text-zinc-500">Informe o email cadastrado</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  required
+                  autoFocus
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#C9F80D] focus:ring-1 focus:ring-[#C9F80D]/30 transition-all"
+                />
+                <button
+                  type="submit"
+                  className="w-full font-semibold rounded-xl py-2.5 text-sm transition-all"
+                  style={{ background: "#C9F80D", color: "#09090b" }}
+                >
+                  Enviar link de recuperação
+                </button>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
@@ -26,6 +125,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -166,9 +266,13 @@ export default function LoginPage() {
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                   Senha
                 </label>
-                <a href="/forgot-password" className="text-xs text-zinc-500 hover:text-[#C9F80D] transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  className="text-xs text-zinc-500 hover:text-[#C9F80D] transition-colors"
+                >
                   Esqueci minha senha
-                </a>
+                </button>
               </div>
               <div className="relative">
                 <input
@@ -230,6 +334,12 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </div>
+
+      {/* Forgot password modal */}
+      <AnimatePresence>
+        {showForgot && <ForgotModal onClose={() => setShowForgot(false)} />}
+      </AnimatePresence>
+
     </div>
   );
 }
