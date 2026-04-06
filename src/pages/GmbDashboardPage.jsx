@@ -151,6 +151,7 @@ export default function GmbDashboardPage() {
   const [loadingInsights, setLoadingInsights] = useState(true);
   const [loadingReviews,  setLoadingReviews]  = useState(true);
   const [error, setError]           = useState("");
+  const [clientName, setClientName] = useState("");
 
   if (!user) {
     window.location.href = "/login";
@@ -202,6 +203,13 @@ export default function GmbDashboardPage() {
   }, [clientId, authFetch]);
 
   useEffect(() => { fetchInsights(); }, [fetchInsights]);
+
+  useEffect(() => {
+    authFetch("/api/clients").then(r => r.json()).then(list => {
+      const match = list.find(c => c.id === clientId);
+      if (match) setClientName(match.name);
+    }).catch(() => {});
+  }, [clientId, authFetch]);
   useEffect(() => { fetchReviews();  }, [fetchReviews]);
 
   const m               = insights?.metrics || {};
@@ -348,13 +356,15 @@ export default function GmbDashboardPage() {
               className="flex items-center justify-between flex-wrap gap-3"
             >
               <div>
-                <h1 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                  <MapPin className="w-5 h-5" style={{ color: GMB_GREEN }} />
-                  Google Meu Negócio
-                </h1>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  Visibilidade e avaliações do seu perfil no Google
-                </p>
+                <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
+                <div className="flex items-center gap-2 mt-1.5">
+                  {clientName && (
+                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border border-zinc-700 text-zinc-400 bg-zinc-900 font-mono">
+                      {clientName}
+                    </span>
+                  )}
+                  <span className="text-xs text-zinc-600">Google Meu Negócio</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">

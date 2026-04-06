@@ -479,11 +479,14 @@ export default function GoogleDashboardPage() {
             >
               <div>
                 <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {data?.client
-                    ? `${data.client} · Resultados agregados das campanhas Google Ads`
-                    : "Resultados agregados das campanhas Google Ads"}
-                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  {data?.client && (
+                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border border-zinc-700 text-zinc-400 bg-zinc-900 font-mono">
+                      {data.client}
+                    </span>
+                  )}
+                  <span className="text-xs text-zinc-600">Campanhas Google Ads</span>
+                </div>
               </div>
               <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
                 {PERIODS.map((p) => (
