@@ -22,6 +22,7 @@ import {
   Layers,
   MousePointerClick,
   Activity,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -383,7 +384,7 @@ const DemoAlert = ({ level, message }) => {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function GuidePage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
@@ -438,38 +439,33 @@ export default function GuidePage() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-600/10 border border-violet-600/20 rounded-full text-violet-400 text-xs font-semibold mb-5">
             <BookOpen className="w-3.5 h-3.5" />
-            Guia de uso completo
+            Guia do cliente
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
-            Focus Dashboard
+            Entenda suas campanhas
           </h1>
           <p className="text-zinc-400 max-w-xl mx-auto text-base leading-relaxed">
-            Tudo o que voce precisa saber para usar a plataforma com confianca. Siga as secoes abaixo na ordem ou navegue diretamente para o topico de interesse.
+            Veja o que cada número significa e como acompanhar os resultados das suas campanhas no FocusDashboard.
           </p>
           {user && (
             <p className="mt-4 text-sm text-zinc-500">
-              Logado como{" "}
+              Olá,{" "}
               <span className="text-violet-400 font-medium">{user.name || user.username}</span>
-              {user.role === "admin" && (
-                <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                  Admin
-                </span>
-              )}
             </p>
           )}
         </motion.div>
 
-        {/* ── SECTION 1: O que e o Focus Dashboard ── */}
+        {/* ── SECTION 1: O que é o FocusDashboard ── */}
         <Section index={0}>
-          <StepHeader number="1" icon={Layers} title="O que e o Focus Dashboard" color="violet" />
+          <StepHeader number="1" icon={Layers} title="O que é o FocusDashboard" color="violet" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O <span className="text-violet-400 font-semibold">Focus Dashboard</span> e uma plataforma de analytics de trafego pago desenvolvida para consolidar os resultados de campanhas publicitarias em um unico lugar. Ela integra dados do <span className="text-white font-medium">Meta Ads</span> (Facebook e Instagram) e, em breve, do <span className="text-white font-medium">Google Ads</span>.
+            O <span className="text-violet-400 font-semibold">FocusDashboard</span> é o seu painel de controle de campanhas. Aqui você acompanha em tempo real os resultados de todos os seus anúncios — sem precisar entrar no Meta Ads, Google Ads ou Google Meu Negócio separadamente.
           </p>
           <div className="grid sm:grid-cols-3 gap-3">
             {[
-              { label: "Central de resultados", desc: "Todas as metricas das campanhas em um so painel, sem precisar acessar o Gerenciador de Anuncios." },
-              { label: "Visao por cliente", desc: "Admins enxergam todos os clientes. Clientes enxergam apenas sua propria conta." },
-              { label: "Dados em tempo real", desc: "Metricas atualizadas diariamente via API oficial do Meta, com autenticacao segura por JWT." },
+              { label: "Tudo em um lugar", desc: "Meta Ads, Google Ads e Google Meu Negócio reunidos em um único painel atualizado diariamente." },
+              { label: "Dados reais", desc: "As métricas vêm diretamente das plataformas de anúncios via integração oficial. O que você vê aqui é o que aconteceu de verdade." },
+              { label: "Focado no seu negócio", desc: "Você acessa apenas os dados da sua empresa. Cada número aqui representa resultado real das suas campanhas." },
             ].map((item) => (
               <div key={item.label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                 <p className="text-sm font-semibold text-zinc-200 mb-1">{item.label}</p>
@@ -483,181 +479,151 @@ export default function GuidePage() {
         <Section index={1}>
           <StepHeader number="2" icon={LogIn} title="Como acessar" color="blue" />
           <div className="space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-600/40 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-violet-400">1</span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-200">Acesse a pagina de login</p>
-                <p className="text-sm text-zinc-500 mt-0.5">
-                  Navegue ate{" "}
-                  <code className="px-1.5 py-0.5 bg-zinc-800 rounded text-violet-400 text-xs font-mono">/login</code>{" "}
-                  e insira suas credenciais (usuario e senha) fornecidas pelo administrador.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-600/40 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-violet-400">2</span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-200">Autenticacao JWT</p>
-                <p className="text-sm text-zinc-500 mt-0.5">
-                  O sistema utiliza <span className="text-white font-medium">JSON Web Tokens (JWT)</span> para autenticar as requisicoes. O token e armazenado localmente e renovado automaticamente a cada sessao.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-600/40 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-xs font-bold text-violet-400">3</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
-                  Selecione o cliente
-                  <Users className="w-3.5 h-3.5 text-zinc-500" />
-                </p>
-                <p className="text-sm text-zinc-500 mt-0.5 mb-3">
-                  Apos o login, voce vera um seletor de cliente no topo da pagina.
-                </p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="bg-zinc-900 border border-amber-500/20 rounded-xl p-4">
-                    <span className="text-xs font-semibold text-amber-400 mb-1.5 block">Perfil Admin</span>
-                    <p className="text-xs text-zinc-500 leading-relaxed">
-                      Visualiza todos os clientes cadastrados. Pode alternar entre contas livremente pelo seletor no header.
-                    </p>
-                  </div>
-                  <div className="bg-zinc-900 border border-violet-500/20 rounded-xl p-4">
-                    <span className="text-xs font-semibold text-violet-400 mb-1.5 block">Perfil Cliente</span>
-                    <p className="text-xs text-zinc-500 leading-relaxed">
-                      Visualiza apenas a propria conta. O seletor nao aparece — o dashboard ja carrega diretamente com os dados do cliente logado.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 3: Escolhendo o periodo ── */}
-        <Section index={2}>
-          <StepHeader number="3" icon={CalendarDays} title="Escolhendo o periodo" color="cyan" />
-          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O Focus Dashboard exibe metricas com base no periodo selecionado. O dia corrente <span className="text-white font-medium">nao e incluido</span> nos calculos pois os dados estao incompletos — o periodo de ontem em diante e o mais recente disponivel.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-3">
             {[
               {
-                label: "Diario",
-                range: "Ontem",
-                desc: "Visualiza os resultados do dia anterior. Ideal para monitoramento diario de performance.",
-                color: "bg-cyan-500/15 border-cyan-500/30 text-cyan-300",
-                dot: "bg-cyan-500",
+                n: "1",
+                title: "Acesse o link enviado pela Focus Mídia",
+                desc: "Você recebeu um link personalizado do dashboard. Acesse pelo celular ou computador.",
               },
               {
-                label: "Semanal",
-                range: "Semana passada",
-                desc: "Agrega os resultados dos ultimos 7 dias completos. Bom para identificar tendencias de curto prazo.",
-                color: "bg-violet-500/15 border-violet-500/30 text-violet-300",
-                dot: "bg-violet-500",
+                n: "2",
+                title: "Faça login com seu usuário e senha",
+                desc: "Use as credenciais enviadas pela agência. Em caso de dúvida, entre em contato com seu gerente de conta.",
               },
               {
-                label: "Mensal",
-                range: "Mes passado",
-                desc: "Consolida o mes anterior completo. Essencial para relatorios mensais e comparativos.",
-                color: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-                dot: "bg-emerald-500",
+                n: "3",
+                title: "Pronto — seus dados carregam automaticamente",
+                desc: "O dashboard carrega direto com os dados da sua empresa. Não é preciso configurar nada.",
               },
-            ].map((p) => (
-              <div key={p.label} className={`border rounded-xl p-4 ${p.color}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-2 h-2 rounded-full ${p.dot}`} />
-                  <span className="text-sm font-bold">{p.label}</span>
+            ].map((step) => (
+              <div key={step.n} className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-violet-600/20 border border-violet-600/40 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-violet-400">{step.n}</span>
                 </div>
-                <p className="text-xs font-mono mb-2 opacity-75">{p.range}</p>
-                <p className="text-xs opacity-70 leading-relaxed">{p.desc}</p>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">{step.title}</p>
+                  <p className="text-sm text-zinc-500 mt-0.5">{step.desc}</p>
+                </div>
               </div>
             ))}
           </div>
-          <div className="mt-4 flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+        </Section>
+
+        {/* ── SECTION 3: Navegando entre as plataformas ── */}
+        <Section index={2}>
+          <StepHeader number="3" icon={BarChart2} title="Navegando entre as plataformas" color="blue" />
+          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
+            Na parte superior da tela você verá abas de navegação. Cada aba mostra os resultados de uma plataforma diferente.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="bg-zinc-900 border border-sky-500/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">📘</span>
+                <span className="text-sm font-bold text-sky-400">Meta Ads</span>
+              </div>
+              <p className="text-xs text-zinc-500 font-medium mb-1">Facebook e Instagram</p>
+              <p className="text-xs text-zinc-600 leading-relaxed">Resultados de anúncios no feed, stories e reels. Inclui impressões, conversas iniciadas e custo por resultado.</p>
+            </div>
+            <div className="bg-zinc-900 border border-blue-500/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">🔵</span>
+                <span className="text-sm font-bold text-blue-400">Google Ads</span>
+              </div>
+              <p className="text-xs text-zinc-500 font-medium mb-1">Pesquisa e Display</p>
+              <p className="text-xs text-zinc-600 leading-relaxed">Resultados dos anúncios que aparecem no Google quando alguém pesquisa pelo seu negócio ou serviço.</p>
+            </div>
+            <div className="bg-zinc-900 border border-emerald-500/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">📍</span>
+                <span className="text-sm font-bold text-emerald-400">Meu Negócio</span>
+              </div>
+              <p className="text-xs text-zinc-500 font-medium mb-1">Perfil local no Google</p>
+              <p className="text-xs text-zinc-600 leading-relaxed">Visualizações do seu perfil no Google Maps e buscas, ligações recebidas e avaliações dos clientes.</p>
+            </div>
+          </div>
+        </Section>
+
+        {/* ── SECTION 4: Escolhendo o período ── */}
+        <Section index={3}>
+          <StepHeader number="4" icon={CalendarDays} title="Escolhendo o período" color="cyan" />
+          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
+            Use os botões <span className="text-white font-medium">Diário</span>, <span className="text-white font-medium">Semanal</span> ou <span className="text-white font-medium">Mensal</span> para ver os resultados do período que você quer analisar.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+            <div className="border border-cyan-500/30 bg-cyan-500/5 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                <span className="text-sm font-bold text-cyan-300">Diário</span>
+              </div>
+              <p className="text-xs font-mono text-cyan-400/70 mb-2">Ontem</p>
+              <p className="text-xs text-cyan-300/60 leading-relaxed">Ideal para verificar rapidamente o que aconteceu no dia anterior.</p>
+            </div>
+            <div className="border border-violet-500/30 bg-violet-500/5 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-violet-500" />
+                <span className="text-sm font-bold text-violet-300">Semanal</span>
+              </div>
+              <p className="text-xs font-mono text-violet-400/70 mb-2">Últimos 7 dias</p>
+              <p className="text-xs text-violet-300/60 leading-relaxed">Bom para ver tendências da semana e comparar com a semana anterior.</p>
+            </div>
+            <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-sm font-bold text-emerald-300">Mensal</span>
+              </div>
+              <p className="text-xs font-mono text-emerald-400/70 mb-2">Últimos 30 dias</p>
+              <p className="text-xs text-emerald-300/60 leading-relaxed">Visão completa do mês. Use para entender a performance geral das campanhas.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
             <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
             <p className="text-sm text-zinc-400 leading-relaxed">
-              <span className="text-amber-400 font-medium">Dado incompleto:</span> o dia atual nao aparece porque as metricas so ficam consolidadas apos o encerramento do dia pela API do Meta.
+              Os dados do dia atual não aparecem porque as plataformas só finalizam os números após a meia-noite. O período mais recente disponível é sempre ontem.
             </p>
           </div>
         </Section>
 
-        {/* ── SECTION 4: Cards de KPI ── */}
-        <Section index={3}>
-          <StepHeader number="4" icon={Activity} title="Cards de KPI" color="green" />
+        {/* ── SECTION 5: Meta Ads ── */}
+        <Section index={4}>
+          <StepHeader number="5" icon={MessageCircle} title="Meta Ads — O que cada número significa" color="green" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            Os cards de KPI ficam no topo do dashboard e mostram os principais indicadores do periodo selecionado. Cada card inclui o valor atual e a variacao percentual em relacao ao periodo anterior.
+            Estes são os principais indicadores das suas campanhas no Facebook e Instagram. Veja o que cada um representa para o seu negócio:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <DemoKpiCard icon={Eye} label="Impressoes" value="142.830" delta="12%" positive={true} deltaLabel="vs periodo anterior" color="cyan" />
-            <DemoKpiCard icon={MessageCircle} label="Conversas" value="347" delta="8%" positive={true} deltaLabel="vs periodo anterior" color="green" />
-            <DemoKpiCard icon={DollarSign} label="Investimento" value="R$ 4.280" delta="-3%" positive={false} deltaLabel="vs periodo anterior" color="orange" />
+            <DemoKpiCard icon={Eye} label="Impressões" value="142.830" delta="12%" positive={true} deltaLabel="vs período anterior" color="cyan" />
+            <DemoKpiCard icon={MessageCircle} label="Conversas" value="347" delta="8%" positive={true} deltaLabel="vs período anterior" color="green" />
+            <DemoKpiCard icon={DollarSign} label="Investimento" value="R$ 4.280" delta="-3%" positive={false} deltaLabel="vs período anterior" color="orange" />
             <DemoKpiCard icon={Target} label="CPR" value="R$ 12,34" delta="-8%" positive={true} deltaLabel="bom — queda no custo" color="violet" />
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60">
-            <MetricRow color="cyan" label="Impressoes" description="Quantas vezes o anuncio foi exibido na tela de algum usuario. Nao representa cliques ou interacoes." />
-            <MetricRow color="green" label="Conversas" description="Numero de conversas iniciadas via Messenger, WhatsApp ou Instagram Direct geradas pelos anuncios." />
-            <MetricRow color="orange" label="Investimento" description="Total gasto no periodo selecionado. Uma queda pode ser natural (ex: menos dias) ou intencional." />
-            <MetricRow color="violet" label="CPR (Custo por Resultado)" description="Quanto custou em media cada conversa iniciada. Quanto menor, melhor — indica eficiencia da campanha." />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 mb-4">
+            <MetricRow color="cyan" label="Impressões" description="Quantas vezes seu anúncio apareceu na tela de alguém. Um número alto indica boa distribuição, mas o que importa mesmo é quantas conversas esse alcance gerou." />
+            <MetricRow color="green" label="Conversas" description="Pessoas que clicaram no anúncio e iniciaram uma conversa no WhatsApp, Messenger ou Instagram Direct. É o seu lead — o contato direto com um potencial cliente." />
+            <MetricRow color="orange" label="Investimento" description="Total gasto no período. Esse valor reflete o que foi aprovado no orçamento da campanha." />
+            <MetricRow color="violet" label="CPR — Custo por Resultado" description="Quanto custou em média cada conversa. Quanto menor esse número, mais eficiente está a campanha. Uma queda no CPR é uma boa notícia." />
           </div>
-          <div className="mt-4 flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+          <div className="flex items-start gap-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
             <TrendingDown className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
             <p className="text-sm text-zinc-400 leading-relaxed">
-              Para o CPR, uma <span className="text-emerald-400 font-medium">queda e positiva</span> — significa que cada conversa esta custando menos. Para Conversas e Impressoes, uma <span className="text-emerald-400 font-medium">alta e positiva</span>.
+              Para o CPR, uma <span className="text-emerald-400 font-medium">queda é positiva</span> — significa que cada conversa está custando menos. Para Conversas, uma <span className="text-emerald-400 font-medium">alta é positiva</span>. Sempre analise os dois juntos.
             </p>
           </div>
         </Section>
 
-        {/* ── SECTION 5: Indicadores de conversao ── */}
-        <Section index={4}>
-          <StepHeader number="5" icon={MousePointerClick} title="Indicadores de conversao (Funil)" color="cyan" />
-          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            Alem dos KPIs principais, o dashboard exibe indicadores de conversao que mostram a eficiencia de cada etapa do funil — do clique no anuncio ate a conversa iniciada.
-          </p>
-          <div className="space-y-3">
-            <FunnelRow
-              label="CTR — Taxa de Clique"
-              formula="Cliques / Impressoes x 100"
-              benchmark="Bom: > 1,5%"
-              explanation="Mede o percentual de pessoas que clicaram no anuncio apos ve-lo. Um CTR baixo sugere que o criativo ou o publico-alvo precisam de ajustes."
-              color="cyan"
-            />
-            <FunnelRow
-              label="Taxa de Conversa"
-              formula="Conversas / Cliques x 100"
-              benchmark="Bom: > 8%"
-              explanation="Mede quantos dos usuarios que clicaram no anuncio efetivamente iniciaram uma conversa. Uma taxa baixa pode indicar problemas na landing page ou CTA confuso."
-              color="green"
-            />
-            <FunnelRow
-              label="Taxa Global"
-              formula="Conversas / Impressoes x 100"
-              benchmark="Bom: > 0,15%"
-              explanation="Taxa combinada de todo o funil: da impressao ate a conversa. E o indicador mais completo de eficiencia da campanha como um todo."
-              color="violet"
-            />
-          </div>
-        </Section>
-
-        {/* ── SECTION 6: Grafico de tendencia ── */}
+        {/* ── SECTION 6: Gráfico de tendência ── */}
         <Section index={5}>
-          <StepHeader number="6" icon={TrendingUp} title="Grafico de tendencia (30 dias)" color="violet" />
+          <StepHeader number="6" icon={TrendingUp} title="Gráfico de tendência" color="violet" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O grafico de linha exibe a evolucao de duas metricas ao longo dos ultimos 30 dias: <span className="text-violet-400 font-medium">Investimento</span> e <span className="text-emerald-400 font-medium">Conversas</span>. Ideal para identificar padroes e sazonalidades.
+            O gráfico de linha mostra como o Investimento e as Conversas evoluíram ao longo dos últimos 30 dias. É a melhor forma de entender se a campanha está melhorando ou piorando.
           </p>
           <DemoSparkline />
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <p className="text-xs font-semibold text-zinc-300 mb-1.5">Como ler o grafico</p>
+              <p className="text-xs font-semibold text-zinc-300 mb-1.5">Como ler</p>
               <ul className="space-y-1.5">
                 {[
-                  "Eixo X: dias do periodo (1 a 30)",
-                  "Eixo Y: valores normalizados para comparacao relativa",
-                  "Passe o mouse sobre o grafico para ver os valores exatos do dia",
+                  "Linha roxa = Investimento diário",
+                  "Linha verde = Conversas geradas por dia",
+                  "Passe o mouse sobre o gráfico para ver os valores exatos de cada dia",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2 text-xs text-zinc-500">
                     <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-1.5 shrink-0" />
@@ -667,12 +633,12 @@ export default function GuidePage() {
               </ul>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <p className="text-xs font-semibold text-zinc-300 mb-1.5">Sinais de alerta</p>
+              <p className="text-xs font-semibold text-zinc-300 mb-1.5">O que observar</p>
               <ul className="space-y-1.5">
                 {[
-                  "Investimento subindo e conversas caindo: campanha perdendo eficiencia",
-                  "Ambas caindo: possivel esgotamento de publico",
-                  "Ambas subindo de forma proporcional: campanha saudavel",
+                  "Investimento subindo e conversas também → campanha saudável",
+                  "Investimento subindo e conversas caindo → eficiência está diminuindo",
+                  "Ambas crescendo juntas → ótimo sinal de escala",
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-2 text-xs text-zinc-500">
                     <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-1.5 shrink-0" />
@@ -684,237 +650,106 @@ export default function GuidePage() {
           </div>
         </Section>
 
-        {/* ── SECTION 7: Grafico de barras ── */}
+        {/* ── SECTION 7: Melhores anúncios ── */}
         <Section index={6}>
-          <StepHeader number="7" icon={BarChart2} title="Distribuicao de Cliques (Barras)" color="blue" />
+          <StepHeader number="7" icon={Image} title="Seus melhores anúncios" color="amber" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O grafico de barras empilhadas exibe a distribuicao de <span className="text-violet-400 font-medium">cliques</span> e <span className="text-emerald-400 font-medium">conversas</span> nos ultimos 21 dias. E possivel identificar rapidamente quais dias concentram maior volume de interacoes.
-          </p>
-          <DemoBarChart />
-          <div className="mt-4 space-y-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-            <p className="text-sm font-semibold text-zinc-300 mb-3">Como usar esse grafico</p>
-            <MetricRow color="violet" label="Barra violeta (Cliques)" description="Representa o total de cliques recebidos no dia. Dias com barras altas indicam maior interesse do publico." />
-            <MetricRow color="green" label="Barra verde (Conversas)" description="Representa as conversas iniciadas no mesmo dia. Idealmente deve crescer proporcionalmente aos cliques." />
-            <MetricRow color="zinc" label="Tooltip ao passar o mouse" description="Ao passar o cursor sobre uma barra, aparece um tooltip com o valor exato de cliques e conversas daquele dia." />
-            <MetricRow color="cyan" label="Correlacao entre as barras" description="Dias em que a barra de conversas e proporcionalmente maior que a de cliques indicam altissima taxa de conversao." />
-          </div>
-        </Section>
-
-        {/* ── SECTION 8: Criativos ── */}
-        <Section index={7}>
-          <StepHeader number="8" icon={Image} title="Criativos — Top Anuncios" color="amber" />
-          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            A aba <span className="text-white font-medium">Criativos</span> exibe os anuncios com melhor performance no periodo, ranqueados pelo numero de conversas geradas. Cada card mostra thumbnail, metricas-chave e a posicao no ranking.
+            A seção de Criativos mostra quais anúncios geraram mais conversas no período. Use isso para entender quais peças estão funcionando melhor com o seu público.
           </p>
           <div className="grid grid-cols-3 gap-3 mb-5">
             <DemoCreativeCard rank={1} conversas={142} cpr="R$ 8,90" gasto="R$ 1.264" />
             <DemoCreativeCard rank={2} conversas={98} cpr="R$ 11,20" gasto="R$ 1.097" />
             <DemoCreativeCard rank={3} conversas={61} cpr="R$ 15,44" gasto="R$ 941" />
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60">
-            <MetricRow color="orange" label="Badge de ranking (#1, #2, #3)" description="Dourado para o 1o lugar, prata para o 2o e bronze para o 3o. Reflete o total de conversas no periodo." />
-            <MetricRow color="green" label="Badge de conversas" description="Numero de conversas geradas especificamente por aquele criativo. Principal criterio de ranqueamento." />
-            <MetricRow color="violet" label="CPR do criativo" description="Custo por resultado especifico daquele anuncio. Permite comparar a eficiencia entre diferentes criativos." />
-            <MetricRow color="orange" label="Gasto do criativo" description="Total investido naquele anuncio especifico. Ajuda a entender a distribuicao de orcamento entre criativos." />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 mb-4">
+            <MetricRow color="orange" label="Badge #1, #2, #3" description="Os anúncios são classificados pela quantidade de conversas geradas. O primeiro lugar é o seu anúncio mais eficiente no período." />
+            <MetricRow color="green" label="Conversas" description="Número de conversas que aquele anúncio específico gerou. É o critério principal de ranqueamento." />
+            <MetricRow color="violet" label="CPR do criativo" description="Custo por conversa daquele anúncio. Compare com os outros para identificar os mais eficientes." />
+          </div>
+          <div className="flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Se o anúncio #1 tem CPR bem menor que os outros, considere conversar com sua agência sobre aumentar o investimento nele.
+            </p>
           </div>
         </Section>
 
-        {/* ── SECTION 9: Anuncios ativos ── */}
-        <Section index={8}>
-          <StepHeader number="9" icon={Eye} title="Anuncios Ativos" color="green" />
+        {/* ── SECTION 8: Google Ads ── */}
+        <Section index={7}>
+          <StepHeader number="8" icon={Activity} title="Google Ads — O que os números significam" color="blue" />
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            A secao <span className="text-white font-medium">Anuncios Ativos</span> esta disponivel na aba do cliente e lista todos os anuncios com status <span className="text-emerald-400 font-medium">ATIVO</span> no momento. E uma visao operacional para acompanhar o que esta rodando agora.
+            Os anúncios no Google aparecem quando alguém pesquisa pelo seu produto ou serviço. Aqui estão as métricas mais importantes:
           </p>
-          <div className="grid sm:grid-cols-2 gap-3 mb-5">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 mb-4">
+            <MetricRow color="cyan" label="Impressões" description="Quantas vezes seu anúncio apareceu nos resultados de pesquisa do Google. Indica o alcance das suas campanhas de busca." />
+            <MetricRow color="violet" label="Cliques" description="Quantas pessoas clicaram no seu anúncio e foram para o seu site ou página de destino." />
+            <MetricRow color="green" label="CTR — Taxa de Clique" description="Percentual de pessoas que viram o anúncio e clicaram. Um CTR bom indica que o texto do anúncio está atraente para o público certo." />
+            <MetricRow color="orange" label="Gasto" description="Total investido nas campanhas Google no período selecionado." />
+          </div>
+          <div className="flex items-start gap-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+            <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              No Google, o objetivo geralmente é levar o cliente ao site ou landing page. Diferente do Meta onde medimos conversas, no Google medimos cliques e conversões no site.
+            </p>
+          </div>
+        </Section>
+
+        {/* ── SECTION 9: Google Meu Negócio ── */}
+        <Section index={8}>
+          <StepHeader number="9" icon={MapPin} title="Meu Negócio — Sua presença local" color="green" />
+          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
+            O Google Meu Negócio é o perfil da sua empresa no Google Maps e nas pesquisas locais. Essas métricas mostram como as pessoas estão encontrando e interagindo com seu negócio:
+          </p>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 mb-5">
+            <MetricRow color="cyan" label="Impressões totais" description="Quantas vezes seu perfil apareceu para alguém — seja numa busca no Google ou no Maps." />
+            <MetricRow color="violet" label="Buscas" description="Pessoas que encontraram seu negócio pesquisando no Google (ex: 'clínica odontológica perto de mim')." />
+            <MetricRow color="green" label="Mapas" description="Pessoas que visualizaram seu negócio diretamente no Google Maps." />
+            <MetricRow color="orange" label="Ligações" description="Quantas pessoas clicaram em 'Ligar' no seu perfil. Cada ligação é um potencial cliente interessado." />
+            <MetricRow color="cyan" label="Cliques no site" description="Acessos ao seu site vindos diretamente do perfil no Google." />
+            <MetricRow color="violet" label="Direções/Rotas" description="Pessoas que pediram rota até sua localização — sinal claro de intenção de visita." />
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <p className="text-sm font-semibold text-zinc-200 mb-3">Avaliações dos clientes</p>
+            <p className="text-sm text-zinc-500 leading-relaxed mb-4">
+              Além das métricas de visibilidade, você também acompanha a nota média da sua empresa e as avaliações recentes dos seus clientes no Google.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-4">
+                <p className="text-sm font-semibold text-zinc-200 mb-1">Nota média (★)</p>
+                <p className="text-xs text-zinc-500 leading-relaxed">Média das estrelas. Uma nota acima de 4,5 transmite confiança e influencia novos clientes a escolherem sua empresa.</p>
+              </div>
+              <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-4">
+                <p className="text-sm font-semibold text-zinc-200 mb-1">Total de avaliações</p>
+                <p className="text-xs text-zinc-500 leading-relaxed">Quantidade total de reviews. Quanto mais avaliações, mais relevância seu perfil tem no Google.</p>
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* ── SECTION 10: Exportando o relatório ── */}
+        <Section index={9}>
+          <StepHeader number="10" icon={FileText} title="Exportando seu relatório" color="green" />
+          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
+            Você pode gerar um relatório completo do mês com um clique. Ideal para guardar o histórico ou compartilhar os resultados com sua equipe.
+          </p>
+          <div className="space-y-4 mb-5">
             {[
-              { nome: "Criativo Verao 2025 — V1", status: "Ativo", gasto: "R$ 890", cpl: "R$ 10,20", ctr: "2.3%", impressoes: "38.400" },
-              { nome: "Oferta Limitada — Stories", status: "Ativo", gasto: "R$ 640", cpl: "R$ 13,80", ctr: "1.8%", impressoes: "24.100" },
-            ].map((ad) => (
-              <div key={ad.nome} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center shrink-0">
-                    <Image className="w-5 h-5 text-zinc-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">{ad.nome}</p>
-                    <span className="inline-flex items-center gap-1 mt-0.5 text-xs font-semibold text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      {ad.status}
-                    </span>
-                  </div>
+              { n: "1", text: "Clique no botão 'Exportar Relatório' no canto superior direito do dashboard" },
+              { n: "2", text: "O relatório abre em uma nova aba com todos os dados do mês: Meta Ads, Google Ads e Meu Negócio" },
+              { n: "3", text: "Para salvar como PDF: pressione Ctrl+P (ou Cmd+P no Mac) e escolha 'Salvar como PDF'" },
+            ].map((step) => (
+              <div key={step.n} className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-emerald-400">{step.n}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                  {[
-                    { l: "Gasto", v: ad.gasto },
-                    { l: "CPL", v: ad.cpl },
-                    { l: "CTR", v: ad.ctr },
-                    { l: "Impressoes", v: ad.impressoes },
-                  ].map((m) => (
-                    <div key={m.l}>
-                      <span className="text-xs text-zinc-500">{m.l}</span>
-                      <p className="text-xs font-semibold text-zinc-200">{m.v}</p>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-zinc-400 leading-relaxed pt-1">{step.text}</p>
               </div>
             ))}
           </div>
-          <div className="flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <span className="w-2 h-2 rounded-full bg-violet-500 mt-1.5 shrink-0" />
+          <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+            <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
             <p className="text-sm text-zinc-400 leading-relaxed">
-              O grid de anuncios ativos e responsivo — em telas menores exibe uma coluna, em telas maiores exibe 2 ou 3 colunas. Cada card tem thumbnail, status em tempo real e as principais metricas do anuncio.
-            </p>
-          </div>
-        </Section>
-
-        {/* ── SECTION 10: Painel Admin — Saude dos clientes ── */}
-        <Section index={9}>
-          <StepHeader number="10" icon={ShieldCheck} title="Painel Admin — Saude dos Clientes" color="violet" />
-          <div className="flex items-center gap-2 mb-5">
-            <AdminBadge />
-            <span className="text-xs text-zinc-500">Visivel apenas para contas com perfil Admin</span>
-          </div>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O <span className="text-white font-medium">Score de Saude</span> e um indice de 0 a 100 que resume automaticamente a performance de cada cliente. Facilita a identificacao de quem precisa de atencao imediata.
-          </p>
-          <div className="flex flex-wrap gap-3 mb-6">
-            <DemoHealthBadge score={95} label="Excelente" color="green" />
-            <DemoHealthBadge score={78} label="Bom" color="green" />
-            <DemoHealthBadge score={52} label="Atencao" color="yellow" />
-            <DemoHealthBadge score={28} label="Critico" color="red" />
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
-            <p className="text-sm font-semibold text-zinc-300 mb-4">Composicao do score</p>
-            <ScoreBar label="CPR" pts={35} color="violet" />
-            <ScoreBar label="Conversas" pts={35} color="green" />
-            <ScoreBar label="Budget" pts={20} color="cyan" />
-            <ScoreBar label="Tendencia" pts={10} color="orange" />
-          </div>
-          <div className="mt-4 grid sm:grid-cols-2 gap-3">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <p className="text-xs font-semibold text-zinc-300 mb-2">Faixas de score</p>
-              <div className="space-y-1.5">
-                {[
-                  { range: "80 – 100", label: "Excelente", color: "text-emerald-400" },
-                  { range: "60 – 79", label: "Bom", color: "text-emerald-400" },
-                  { range: "40 – 59", label: "Atencao", color: "text-amber-400" },
-                  { range: "0 – 39", label: "Critico", color: "text-rose-400" },
-                ].map((f) => (
-                  <div key={f.range} className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-zinc-500">{f.range}</span>
-                    <span className={`text-xs font-semibold ${f.color}`}>{f.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <p className="text-xs font-semibold text-zinc-300 mb-2">O que influencia o score</p>
-              <ul className="space-y-1.5">
-                {[
-                  "CPR abaixo do benchmark do cliente (+pts)",
-                  "Volume de conversas crescendo (+pts)",
-                  "Orcamento sendo utilizado adequadamente (+pts)",
-                  "Tendencia positiva nos ultimos 7 dias (+pts)",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2 text-xs text-zinc-500">
-                    <span className="w-1 h-1 rounded-full bg-zinc-600 mt-1.5 shrink-0" />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </Section>
-
-        {/* ── SECTION 11: Alertas e Campanhas ── */}
-        <Section index={10}>
-          <StepHeader number="11" icon={Bell} title="Painel Admin — Alertas e Campanhas" color="amber" />
-          <div className="flex items-center gap-2 mb-5">
-            <AdminBadge />
-            <span className="text-xs text-zinc-500">Visivel apenas para contas com perfil Admin</span>
-          </div>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-            A aba <span className="text-white font-medium">Alertas</span> exibe notificacoes automaticas baseadas em regras configuradas por metrica. Permite identificar rapidamente campanhas fora do padrao.
-          </p>
-          <div className="space-y-2.5 mb-6">
-            <DemoAlert level="critical" message="Cliente Loja ABC — CPR atingiu R$ 24,80, acima do limite configurado de R$ 20,00." />
-            <DemoAlert level="warning" message="Cliente Studio XYZ — Conversas caindo ha 3 dias consecutivos. Tendencia negativa detectada." />
-            <DemoAlert level="critical" message="Cliente Escola Top — Sem impressoes nas ultimas 24h. Possivelmente campanha pausada." />
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
-            <p className="text-sm font-semibold text-zinc-300 mb-3">Exemplos de regras de alerta</p>
-            <div className="grid sm:grid-cols-2 gap-2.5">
-              {[
-                { rule: "CPR > R$ 20", label: "Critico", color: "text-rose-400" },
-                { rule: "CPR entre R$ 15–20", label: "Atencao", color: "text-amber-400" },
-                { rule: "Conversas < 5 / dia", label: "Atencao", color: "text-amber-400" },
-                { rule: "Sem impressoes > 12h", label: "Critico", color: "text-rose-400" },
-              ].map((r) => (
-                <div key={r.rule} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-3 py-2">
-                  <span className="text-xs font-mono text-zinc-400">{r.rule}</span>
-                  <span className={`text-xs font-semibold ${r.color}`}>{r.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-            <p className="text-sm font-semibold text-zinc-300 mb-2">Aba Campanhas</p>
-            <p className="text-sm text-zinc-500 leading-relaxed">
-              A aba <span className="text-white font-medium">Campanhas</span> no painel admin exibe um breakdown detalhado por campanha de cada cliente: nome, status, impressoes, cliques, conversas, CPR e gasto total. Permite uma analise granular sem sair do Focus Dashboard.
-            </p>
-          </div>
-        </Section>
-
-        {/* ── SECTION 12: Exportacao e Relatorios ── */}
-        <Section index={11}>
-          <StepHeader number="12" icon={FileText} title="Exportacao e Relatorios" color="green" />
-          <p className="text-zinc-400 text-sm leading-relaxed mb-5">
-            O Focus Dashboard permite gerar relatorios profissionais em HTML para compartilhar com clientes ou arquivar resultados. Voce pode enviar manualmente ou agendar envios automaticos por e-mail.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4 mb-5">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="w-4 h-4 text-violet-400" />
-                <span className="text-sm font-semibold text-zinc-200">Relatorio em HTML</span>
-              </div>
-              <ul className="space-y-2">
-                {[
-                  "Abre em nova aba no navegador",
-                  "Layout estilizado e pronto para impressao",
-                  "Inclui todos os KPIs, graficos e criativos do periodo",
-                  "Pode ser salvo como PDF pelo navegador (Ctrl+P)",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2 text-xs text-zinc-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 shrink-0" />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Bell className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-semibold text-zinc-200">Agendamento automatico</span>
-              </div>
-              <ul className="space-y-2">
-                {[
-                  "Configure o e-mail destinatario",
-                  "Escolha o periodo: diario, semanal ou mensal",
-                  "Defina o dia da semana ou do mes para envio",
-                  "Clique em Enviar agora para teste imediato",
-                ].map((t) => (
-                  <li key={t} className="flex items-start gap-2 text-xs text-zinc-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="flex items-start gap-2.5 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Os relatorios sao gerados dinamicamente com base nos dados mais recentes disponíveis no momento da exportacao. Sempre verifique o periodo antes de exportar.
+              O relatório é gerado com os dados mais recentes disponíveis no momento da exportação. Sempre verifique a data no topo do documento.
             </p>
           </div>
         </Section>
@@ -928,27 +763,31 @@ export default function GuidePage() {
           className="pt-4"
         >
           <h2 className="text-xl font-bold text-white mb-2">Perguntas frequentes</h2>
-          <p className="text-zinc-500 text-sm mb-6">Duvidas comuns sobre o uso do Focus Dashboard.</p>
+          <p className="text-zinc-500 text-sm mb-6">Dúvidas comuns sobre o FocusDashboard.</p>
           <div className="space-y-2">
             <FaqItem
-              question="Por que os dados de hoje nao aparecem no dashboard?"
-              answer="O Focus Dashboard exibe apenas dados de dias completos. O dia atual fica com dados parciais ate a meia-noite, quando a API do Meta finaliza a consolidacao. Isso evita que numeros incompletos distorcam sua analise — o periodo mais recente disponivel e sempre ontem."
+              question="Por que os dados de hoje não aparecem?"
+              answer="As plataformas de anúncios finalizam os dados do dia após a meia-noite. Por isso, o período mais recente disponível é sempre ontem. Isso garante que você veja apenas números completos e precisos."
             />
             <FaqItem
-              question="O que fazer se o CPR esta muito alto?"
-              answer="Um CPR elevado indica que cada conversa esta custando mais do que o esperado. Primeiro, verifique quais criativos possuem CPR mais alto na aba Criativos e considere pausa-los. Em seguida, analise o CTR: se estiver baixo, o problema pode ser no criativo ou na segmentacao. Se o CTR esta bom mas as conversas sao poucas, o problema pode estar na abordagem de vendas."
+              question="O que fazer se o CPR está alto?"
+              answer="Um CPR elevado significa que cada conversa está custando mais do que o esperado. Não se preocupe — isso é normal em alguns momentos. Avise seu gerente de conta na Focus Mídia: a equipe analisa os criativos e faz ajustes nas campanhas para reduzir esse custo."
             />
             <FaqItem
-              question="Como interpretar o Score de Saude do cliente?"
-              answer="O Score de Saude varia de 0 a 100 e combina 4 fatores: CPR (35 pts), volume de conversas (35 pts), utilizacao do budget (20 pts) e tendencia dos ultimos 7 dias (10 pts). Um score acima de 80 indica campanha saudavel. Entre 40 e 79 requer monitoramento. Abaixo de 40 exige intervencao imediata — verifique os alertas para entender o motivo."
+              question="Com que frequência os dados são atualizados?"
+              answer="Os dados são sincronizados automaticamente uma vez por dia, via integração direta com as plataformas. Se notar alguma diferença entre o dashboard e o que aparece no gerenciador da plataforma, aguarde até o próximo ciclo — pode haver um atraso de algumas horas na consolidação."
             />
             <FaqItem
-              question="Posso acessar o dashboard pelo celular?"
-              answer="Sim. O Focus Dashboard e totalmente responsivo e foi desenvolvido com abordagem mobile-first. Todos os graficos, cards e tabelas se adaptam a telas menores. Para melhor experiencia em dispositivos moveis, recomendamos o modo paisagem ao visualizar os graficos de tendencia."
+              question="Posso acessar pelo celular?"
+              answer="Sim! O FocusDashboard é totalmente responsivo e funciona bem em smartphones e tablets. Para ver os gráficos com mais conforto, recomendamos o modo paisagem no celular."
             />
             <FaqItem
-              question="Com que frequencia os dados sao atualizados?"
-              answer="Os dados sao sincronizados diariamente via API oficial do Meta Ads. A atualizacao ocorre automaticamente a cada 24 horas. Se notar discrepancias entre o Focus Dashboard e o Gerenciador de Anuncios do Meta, aguarde ate o proximo ciclo de sincronizacao — os dados do Meta podem demorar algumas horas para serem finalizados pela propria plataforma."
+              question="O que é uma 'impressão'?"
+              answer="Uma impressão acontece toda vez que seu anúncio é exibido na tela de alguém — mesmo que essa pessoa não clique. É a medida de alcance: quantas vezes seu anúncio foi visto no total."
+            />
+            <FaqItem
+              question="Como sei se minha campanha está indo bem?"
+              answer="Os principais sinais positivos são: CPR estável ou caindo, número de conversas crescendo, e os gráficos de tendência subindo juntos. Se tiver dúvidas sobre a performance, fale com seu gerente na Focus Mídia — estamos aqui para explicar tudo."
             />
           </div>
         </motion.section>
@@ -961,7 +800,7 @@ export default function GuidePage() {
           transition={{ duration: 0.4 }}
           className="text-center py-10"
         >
-          <p className="text-zinc-500 text-sm mb-5">Pronto para acompanhar suas campanhas?</p>
+          <p className="text-zinc-500 text-sm mb-5">Acompanhe seus resultados em tempo real</p>
           <a
             href="/dashboard"
             className="inline-flex items-center gap-2.5 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl transition-colors text-sm shadow-lg shadow-violet-900/30"
@@ -974,10 +813,13 @@ export default function GuidePage() {
       </main>
 
       <footer className="border-t border-zinc-800 mt-4">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4 flex-wrap">
-          <Logo />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Logo className="w-4 h-4 text-violet-500" />
+            <span className="text-sm font-bold">Focus<span className="text-violet-500">Dashboard</span></span>
+          </div>
           <p className="text-xs text-zinc-600">
-            Focus Dashboard — Plataforma de analytics de trafego pago
+            Focus Dashboard — Plataforma de analytics de tráfego pago
           </p>
         </div>
       </footer>
