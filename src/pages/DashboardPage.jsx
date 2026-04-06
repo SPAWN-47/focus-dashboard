@@ -82,8 +82,9 @@ const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
+    whileHover={{ y: -2, transition: { duration: 0.15 } }}
+    transition={{ type: "spring", stiffness: 120, damping: 16, delay }}
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default"
   >
     <div className="flex items-center justify-between">
       <span className="text-[11px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
@@ -93,7 +94,9 @@ const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null
     </div>
     <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
     <div className="flex items-center justify-between min-h-[16px]">
-      {sub && <div className="text-[11px] text-zinc-500">{sub}</div>}
+      <div className="text-[11px] text-zinc-500">
+        {delta !== null && delta !== undefined ? "vs período anterior" : (sub || "")}
+      </div>
       <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
     </div>
   </motion.div>

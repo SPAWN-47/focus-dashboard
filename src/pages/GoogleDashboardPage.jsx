@@ -130,8 +130,9 @@ const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay 
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
+    whileHover={{ y: -2, transition: { duration: 0.15 } }}
+    transition={{ type: "spring", stiffness: 120, damping: 16, delay }}
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default"
   >
     <div className="flex items-center justify-between">
       <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
@@ -221,6 +222,116 @@ const TrendChart = ({ days }) => {
       <div className="flex justify-between px-[14px] mt-1">
         {labels.map((l, i) => (
           <span key={i} className="text-[10px] text-zinc-600">{l}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// GOOGLE FUNNEL VIZ
+// ─────────────────────────────────────────────
+
+const GoogleFunnelViz = ({ metrics }) => {
+  const fNum = (v) => (v || 0).toLocaleString("pt-BR");
+  const stages = [
+    { label: "Impressões", value: metrics.impressoes || 0, color: "#4285F4" },
+    { label: "Cliques",    value: metrics.cliques    || 0, color: "#8b5cf6" },
+    { label: "Conversões", value: metrics.conversas  || 0, color: "#10B981" },
+  ];
+
+  const W = 440;
+  const stageH = 72;
+  const gapH = 12;
+  const maxVal = Math.max(1, stages[0].value);
+  const minW = 72;
+  const maxW = W * 0.92;
+
+  const widths = stages.map((s) => {
+    const ratio = Math.max(0, s.value) / maxVal;
+    return minW + (maxW - minW) * Math.sqrt(ratio);
+  });
+
+  const svgH = stages.length * (stageH + gapH) + 10;
+
+  return (
+    <div className="w-full">
+      <svg viewBox={`0 0 ${W} ${svgH}`} className="w-full" style={{ maxHeight: 280 }}>
+        <defs>
+          {stages.map((s, i) => (
+            <linearGradient key={i} id={`gfunnel-grad-${i}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor={s.color} stopOpacity="0.06" />
+              <stop offset="50%"  stopColor={s.color} stopOpacity="0.26" />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0.06" />
+            </linearGradient>
+          ))}
+          {stages.map((s, i) => (
+            <linearGradient key={`gs-${i}`} id={`gfunnel-stroke-${i}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor={s.color} stopOpacity="0.25" />
+              <stop offset="50%"  stopColor={s.color} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0.25" />
+            </linearGradient>
+          ))}
+        </defs>
+
+        {stages.map((stage, i) => {
+          const y = i * (stageH + gapH);
+          const w = widths[i];
+          const nextW = i < stages.length - 1 ? widths[i + 1] : w * 0.55;
+          const x1 = (W - w) / 2;
+          const x2 = (W + w) / 2;
+          const nx1 = (W - nextW) / 2;
+          const nx2 = (W + nextW) / 2;
+
+          const prevVal = i > 0 ? stages[i - 1].value : null;
+          const convRate = prevVal != null && prevVal > 0
+            ? ((stage.value / prevVal) * 100).toFixed(1)
+            : null;
+
+          return (
+            <g key={i}>
+              <path d={`M ${x1} ${y} L ${x2} ${y} L ${nx2} ${y + stageH} L ${nx1} ${y + stageH} Z`}
+                fill={`url(#gfunnel-grad-${i})`} />
+              <path d={`M ${x1} ${y} L ${x2} ${y} L ${nx2} ${y + stageH} L ${nx1} ${y + stageH} Z`}
+                fill="none" stroke={`url(#gfunnel-stroke-${i})`} strokeWidth="1.5" />
+
+              <text x={x1 - 10} y={y + stageH / 2 - 6} textAnchor="end" fill={stage.color}
+                fontSize="10" fontFamily="system-ui, sans-serif" fontWeight="600" opacity="0.9">
+                {stage.label}
+              </text>
+              <text x={W / 2} y={y + stageH / 2 + 6} textAnchor="middle" fill="white"
+                fontSize="18" fontFamily="system-ui, sans-serif" fontWeight="700">
+                {fNum(stage.value)}
+              </text>
+
+              {convRate && (
+                <text x={x2 + 10} y={y + stageH / 2 - 6} textAnchor="start" fill={stage.color}
+                  fontSize="10" fontFamily="system-ui, sans-serif" fontWeight="600" opacity="0.8">
+                  {convRate}%
+                </text>
+              )}
+              {convRate && (
+                <text x={x2 + 10} y={y + stageH / 2 + 7} textAnchor="start" fill="#6B7280"
+                  fontSize="8.5" fontFamily="system-ui, sans-serif">
+                  conv.
+                </text>
+              )}
+
+              {i < stages.length - 1 && (
+                <line x1={W / 2} y1={y + stageH} x2={W / 2} y2={y + stageH + gapH}
+                  stroke={stages[i + 1].color} strokeWidth="1" strokeOpacity="0.4" strokeDasharray="2,2" />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      <div className="flex flex-wrap gap-3 justify-center mt-2">
+        {stages.map((s, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} />
+            <span className="text-[11px] text-zinc-400">{s.label}</span>
+          </div>
         ))}
       </div>
     </div>
@@ -532,31 +643,72 @@ export default function GoogleDashboardPage() {
               </div>
             )}
 
-            {/* ── TREND CHART ── */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-100">Evolução 30 dias — Cliques vs Conversões</h2>
-                  <p className="text-xs text-zinc-500 mt-0.5">Tendência diária do período</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-0.5 rounded-full" style={{ background: GOOGLE_BLUE, display: "inline-block" }} />
-                    <span className="text-xs text-zinc-400">Cliques</span>
+            {/* ── FUNNEL + TREND CHART ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+
+              {/* FUNNEL */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">Funil de Conversão</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">Impressões → Cliques → Conversões</p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-0.5 rounded-full bg-emerald-500 inline-block" />
-                    <span className="text-xs text-zinc-400">Conversões</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                    style={{ background: GOOGLE_BLUE + "20", color: GOOGLE_BLUE }}>
+                    Google Ads
                   </div>
                 </div>
-              </div>
-              <TrendChart days={trendData?.days || []} />
-            </motion.div>
+
+                <GoogleFunnelViz metrics={m} />
+
+                <div className="mt-4 grid grid-cols-2 gap-2 pt-4 border-t border-zinc-800">
+                  <div className="text-center">
+                    <div className="text-lg font-bold" style={{ color: GOOGLE_BLUE }}>
+                      {m.impressoes > 0 ? ((m.cliques / m.impressoes) * 100).toFixed(2) + "%" : "—"}
+                    </div>
+                    <div className="text-[10px] text-zinc-600 mt-0.5">Impressão → Clique (CTR)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-emerald-400">
+                      {m.cliques > 0 ? ((m.conversas / m.cliques) * 100).toFixed(2) + "%" : "—"}
+                    </div>
+                    <div className="text-[10px] text-zinc-600 mt-0.5">Clique → Conversão</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* TREND CHART */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.35 }}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">Evolução 30 dias — Cliques vs Conversões</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">Tendência diária do período</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3 h-0.5 rounded-full" style={{ background: GOOGLE_BLUE, display: "inline-block" }} />
+                      <span className="text-xs text-zinc-400">Cliques</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3 h-0.5 rounded-full bg-emerald-500 inline-block" />
+                      <span className="text-xs text-zinc-400">Conversões</span>
+                    </div>
+                  </div>
+                </div>
+                <TrendChart days={trendData?.days || []} />
+              </motion.div>
+
+            </div>
 
             {/* ── DEVICE BREAKDOWN ── */}
             {devices?.hasData && (
