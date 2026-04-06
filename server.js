@@ -20,7 +20,7 @@ import axios from "axios";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
-import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId, getDefaultAccountName } from "./lib/gmb.js";
+import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId, getDefaultAccountName, seedAccountNameFromFullPath } from "./lib/gmb.js";
 
 import {
   checkRateLimit,
@@ -2497,6 +2497,16 @@ seedClients();
 // never need to call mybusinessaccountmanagement.googleapis.com again.
 async function initGmbAccountCache() {
   const clients = loadClients();
+
+  // Seed account name cache from any client that already has a full path saved.
+  // This avoids calling mybusinessaccountmanagement.googleapis.com for upgrades.
+  for (const c of Object.values(clients)) {
+    if (/^accounts\/\d+\/locations\/\d+$/.test((c.gmb_location_id || "").trim())) {
+      seedAccountNameFromFullPath(c.gmb_location_id);
+      break;
+    }
+  }
+
   const needsUpgrade = Object.entries(clients).filter(([, c]) =>
     c.gmb_location_id && /^\d+$/.test((c.gmb_location_id || "").trim())
   );
