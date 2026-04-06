@@ -131,7 +131,7 @@ const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2"
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
   >
     <div className="flex items-center justify-between">
       <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
@@ -139,7 +139,7 @@ const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay 
         <Icon className="w-3.5 h-3.5" style={{ color }} />
       </span>
     </div>
-    <div className="text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+    <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
     <div className="flex items-center justify-between min-h-[16px]">
       <span className="text-[11px] text-zinc-600">vs período anterior</span>
       <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
@@ -388,7 +388,7 @@ export default function GoogleDashboardPage() {
             </span>
           </div>
 
-          <div className="ml-4">
+          <div className="ml-2 sm:ml-4 overflow-hidden">
             <PlatformNav active="google" />
           </div>
 
@@ -406,7 +406,7 @@ export default function GoogleDashboardPage() {
       </header>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
 
         {/* ── LOADING ── */}
         {loading && (
@@ -475,7 +475,7 @@ export default function GoogleDashboardPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="flex items-center justify-between flex-wrap gap-3"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
                 <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
@@ -488,12 +488,12 @@ export default function GoogleDashboardPage() {
                   <span className="text-xs text-zinc-600">Campanhas Google Ads</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 self-start">
                 {PERIODS.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setPeriod(p.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       period === p.id
                         ? "text-zinc-100 border border-zinc-700"
                         : "text-zinc-400 hover:text-zinc-200"
@@ -516,7 +516,7 @@ export default function GoogleDashboardPage() {
 
             {/* ── KPI GRID ── */}
             {kpiData.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                 {kpiData.map((kpi, i) => (
                   <KpiCard
                     key={kpi.label}
@@ -539,7 +539,7 @@ export default function GoogleDashboardPage() {
               transition={{ duration: 0.5, delay: 0.3 }}
               className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
             >
-              <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                 <div>
                   <h2 className="text-sm font-semibold text-zinc-100">Evolução 30 dias — Cliques vs Conversões</h2>
                   <p className="text-xs text-zinc-500 mt-0.5">Tendência diária do período</p>
@@ -628,7 +628,7 @@ export default function GoogleDashboardPage() {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
             >
-              <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
+              <div className="px-4 sm:px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-zinc-100">Campanhas</h2>
                   <p className="text-xs text-zinc-500 mt-0.5">
@@ -646,8 +646,8 @@ export default function GoogleDashboardPage() {
                   Sem campanhas com dados para o período selecionado.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-px">
+                  <table className="w-full text-sm min-w-[600px]">
                     <thead>
                       <tr className="border-b border-zinc-800">
                         {TABLE_HEADERS.map((h) => (
@@ -757,7 +757,7 @@ export default function GoogleDashboardPage() {
                   ];
                   return (
                     <>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                         {ytKpis.map((k, i) => (
                           <KpiCard key={k.label} label={k.label} value={k.value} icon={k.icon}
                             color={k.color} lowerIsBetter={k.lowerIsBetter} delay={0.44 + i * 0.05} />
@@ -910,8 +910,8 @@ export default function GoogleDashboardPage() {
                     <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500" />≤ 3 Ruim</span>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-px">
+                  <table className="w-full text-sm min-w-[700px]">
                     <thead>
                       <tr className="border-b border-zinc-800">
                         {["Grupo", "Campanha", "Status", "QS", "Cliques", "CTR", "CPC", "Conv.", "CPL", "Gasto"].map((h) => (
@@ -985,8 +985,8 @@ export default function GoogleDashboardPage() {
                     Top 10 palavras-chave que acionaram seus anúncios no período
                   </p>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto -mx-px">
+                  <table className="w-full text-sm min-w-[580px]">
                     <thead>
                       <tr className="border-b border-zinc-800">
                         {["#", "Termo de Pesquisa", "Impressões", "Cliques", "CTR", "CPC", "Conv.", "Gasto"].map((h) => (

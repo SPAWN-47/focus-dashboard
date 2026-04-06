@@ -83,15 +83,15 @@ const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2"
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
   >
     <div className="flex items-center justify-between">
-      <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
+      <span className="text-[11px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
       <span className="p-1.5 rounded-lg" style={{ background: color + "20" }}>
         <Icon className="w-3.5 h-3.5" style={{ color }} />
       </span>
     </div>
-    <div className="text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+    <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
     <div className="flex items-center justify-between min-h-[16px]">
       {sub && <div className="text-[11px] text-zinc-500">{sub}</div>}
       <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
@@ -484,7 +484,7 @@ const Skeleton = ({ className = "" }) => (
 
 const DashboardSkeleton = () => (
   <div className="flex flex-col gap-6">
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
       {Array.from({ length: 8 }).map((_, i) => (
         <Skeleton key={i} className="h-24" />
       ))}
@@ -673,7 +673,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Platform Tabs */}
-          <div className="ml-4">
+          <div className="ml-2 sm:ml-4 overflow-hidden">
             <PlatformNav active="meta" />
           </div>
 
@@ -704,9 +704,9 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* ── HERO ROW ── */}
-        <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
             <div className="flex items-center gap-2 mt-1.5">
@@ -744,7 +744,7 @@ export default function DashboardPage() {
                 <button
                   key={period.id}
                   onClick={() => setActivePeriod(period.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                     activePeriod === period.id
                       ? "bg-zinc-800 text-zinc-100 shadow-sm border border-zinc-700"
                       : "text-zinc-500 hover:text-zinc-300"
@@ -784,7 +784,7 @@ export default function DashboardPage() {
                 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 : <FileDown className="w-3.5 h-3.5" />
               }
-              {exporting ? "Gerando..." : "Exportar Relatório"}
+              <span className="hidden sm:inline">{exporting ? "Gerando..." : "Exportar Relatório"}</span>
             </button>
           </div>
         </div>
@@ -837,7 +837,7 @@ export default function DashboardPage() {
                 {/* KPI CARDS */}
                 <div>
                   <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Tráfego</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                     <KpiCard
                       label="Investimento"
                       value={`R$ ${fBRL(metrics.gasto)}`}
@@ -884,7 +884,7 @@ export default function DashboardPage() {
 
                 <div>
                   <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Eficiência</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                     <KpiCard
                       label="CTR"
                       value={fPct(metrics.ctr)}
@@ -973,7 +973,7 @@ export default function DashboardPage() {
                     <FunnelViz metrics={metrics} clientColor={currentClient?.color} />
 
                     {/* Funnel stats summary */}
-                    <div className="mt-4 grid grid-cols-3 gap-2 pt-4 border-t border-zinc-800">
+                    <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 pt-4 border-t border-zinc-800">
                       <div className="text-center">
                         <div className="text-lg font-bold text-cyan-400">
                           {metrics.impressoes > 0
@@ -1139,7 +1139,7 @@ export default function DashboardPage() {
                         />
                         <span className="text-[11px] text-zinc-500">Cliques (proporção)</span>
                       </div>
-                      <p className="text-[11px] text-zinc-600 ml-auto">
+                      <p className="text-[11px] text-zinc-600 ml-auto hidden sm:block">
                         Últimos 21 dias · passe o mouse nos bars para detalhes
                       </p>
                     </div>
@@ -1162,8 +1162,8 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-full text-xs min-w-[480px]">
                         <thead>
                           <tr className="text-zinc-500 border-b border-zinc-800">
                             {[
@@ -1266,7 +1266,7 @@ export default function DashboardPage() {
                         <p className="text-xs text-zinc-500 mt-0.5">Top {creativesData.ads.length} por conversas · {PERIODS.find((p) => p.id === activePeriod)?.sub}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                       {creativesData.ads.slice(0, 10).map((ad, i) => {
                         const medals = ["🥇","🥈","🥉"];
                         const medal = i < 3 ? medals[i] : null;
@@ -1333,7 +1333,7 @@ export default function DashboardPage() {
 
       {/* ── FOOTER ── */}
       <footer className="mt-16 border-t border-zinc-800/60 py-6">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2 text-zinc-600 text-xs">
             <Logo className="w-4 h-4 text-violet-500/50" />
             <span>Focus Mídia Digital — Dashboard de Performance</span>

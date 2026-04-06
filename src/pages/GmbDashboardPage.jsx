@@ -76,7 +76,7 @@ const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-2"
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
   >
     <div className="flex items-center justify-between">
       <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
@@ -84,7 +84,7 @@ const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => (
         <Icon className="w-3.5 h-3.5" style={{ color }} />
       </span>
     </div>
-    <div className="text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+    <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
   </motion.div>
 );
 
@@ -248,7 +248,7 @@ export default function GmbDashboardPage() {
             </span>
           </div>
 
-          <div className="ml-4">
+          <div className="ml-2 sm:ml-4 overflow-hidden">
             <PlatformNav active="gmb" />
           </div>
 
@@ -275,7 +275,7 @@ export default function GmbDashboardPage() {
       </header>
 
       {/* ── MAIN CONTENT ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8">
 
         {/* ── NO CLIENT SELECTED (admin sem ?client=) ── */}
         {!clientId && (
@@ -353,7 +353,7 @@ export default function GmbDashboardPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="flex items-center justify-between flex-wrap gap-3"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
                 <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
@@ -367,12 +367,12 @@ export default function GmbDashboardPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 self-start">
                 {PERIODS.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setPeriod(p.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       period === p.id
                         ? "text-zinc-100 border border-zinc-700"
                         : "text-zinc-400 hover:text-zinc-200"
@@ -413,7 +413,7 @@ export default function GmbDashboardPage() {
 
             {/* ── KPI CARDS ── */}
             {(loadingInsights || hasInsights) && !isApiError && !isQuotaError && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
                 {[
                   { label: "Impressões", key: "impressoes", icon: Eye,        color: GMB_GREEN },
                   { label: "Buscas",     key: "buscas",     icon: Search,      color: "#4285F4" },
@@ -474,7 +474,7 @@ export default function GmbDashboardPage() {
                 className="space-y-4"
               >
                 {/* Reviews header */}
-                <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />

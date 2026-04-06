@@ -1365,9 +1365,9 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-1.5 sm:gap-2 mb-8 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar">
           {[
             { id: "clientes", label: "Clientes" },
             { id: "performance", label: "Performance" },
@@ -1380,7 +1380,7 @@ export default function AdminPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition ${
+              className={`px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-medium transition shrink-0 ${
                 tab === t.id
                   ? "bg-violet-600 text-white"
                   : "bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700"
@@ -1433,8 +1433,8 @@ export default function AdminPage() {
         {/* TAB: Clientes */}
         {tab === "clientes" && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Visão Geral</h2>
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+              <h2 className="text-lg sm:text-xl font-bold">Visão Geral</h2>
               <button
                 onClick={() => setModal("new")}
                 className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition"
@@ -1849,15 +1849,15 @@ export default function AdminPage() {
 
               {/* Summary strip */}
               {!allLoading && sorted.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
                   {[
                     { label: "Campanhas", value: sorted.length },
                     { label: "Investimento total", value: `R$ ${totals.gasto.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}` },
                     { label: "Total conversas", value: totals.conversas },
                   ].map((s) => (
-                    <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
-                      <p className="text-xl font-bold text-white tabular-nums">{s.value}</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5 uppercase tracking-wide font-medium">{s.label}</p>
+                    <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 sm:px-4 py-3">
+                      <p className="text-lg sm:text-xl font-bold text-white tabular-nums">{s.value}</p>
+                      <p className="text-[10px] sm:text-[11px] text-zinc-500 mt-0.5 uppercase tracking-wide font-medium">{s.label}</p>
                     </div>
                   ))}
                 </div>
@@ -1876,8 +1876,9 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
                   {/* Table header */}
-                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 py-3 border-b border-zinc-800 text-[11px] text-zinc-500 uppercase tracking-wide font-semibold">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 py-3 border-b border-zinc-800 text-[11px] text-zinc-500 uppercase tracking-wide font-semibold min-w-[520px]">
                     <span>Campanha</span>
                     <span className="text-right w-24">Gasto</span>
                     <span className="text-right w-20">Conversas</span>
@@ -1886,7 +1887,7 @@ export default function AdminPage() {
                     <span className="text-right w-20">CPM</span>
                   </div>
                   {/* Rows */}
-                  <div className="divide-y divide-zinc-800/60">
+                  <div className="divide-y divide-zinc-800/60 min-w-[520px]">
                     {sorted.map((row, i) => (
                       <div
                         key={i}
@@ -1921,6 +1922,7 @@ export default function AdminPage() {
                         </span>
                       </div>
                     ))}
+                  </div>
                   </div>
                 </div>
               )}

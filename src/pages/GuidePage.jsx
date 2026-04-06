@@ -80,15 +80,15 @@ const DemoKpiCard = ({ icon: Icon, label, value, delta, deltaLabel, positive, co
   const c = colorMap[color] || colorMap.violet;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 sm:p-4 flex flex-col gap-2 sm:gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500 font-medium">{label}</span>
-        <div className={`w-8 h-8 rounded-lg ${c.bg} border ${c.border} flex items-center justify-center`}>
-          <Icon className={`w-4 h-4 ${c.text}`} />
+        <span className="text-[11px] sm:text-xs text-zinc-500 font-medium">{label}</span>
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg ${c.bg} border ${c.border} flex items-center justify-center shrink-0`}>
+          <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${c.text}`} />
         </div>
       </div>
       <div className="flex items-end justify-between gap-2">
-        <span className="text-xl font-bold text-white tabular-nums leading-none">{value}</span>
+        <span className="text-lg sm:text-xl font-bold text-white tabular-nums leading-none">{value}</span>
         <span
           className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
             positive
@@ -411,7 +411,7 @@ export default function GuidePage() {
             <span className="text-sm font-semibold hidden sm:block text-violet-400">Guia</span>
           </div>
 
-          <div className="ml-4">
+          <div className="ml-2 sm:ml-4 overflow-hidden">
             <PlatformNav active="guide" />
           </div>
 
@@ -428,7 +428,7 @@ export default function GuidePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-4">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-12 space-y-4">
 
         {/* PAGE HEADER */}
         <motion.div
@@ -441,10 +441,10 @@ export default function GuidePage() {
             <BookOpen className="w-3.5 h-3.5" />
             Guia do cliente
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
             Entenda suas campanhas
           </h1>
-          <p className="text-zinc-400 max-w-xl mx-auto text-base leading-relaxed">
+          <p className="text-zinc-400 max-w-xl mx-auto text-sm sm:text-base leading-relaxed">
             Veja o que cada número significa e como acompanhar os resultados das suas campanhas no FocusDashboard.
           </p>
           {user && (
@@ -589,7 +589,7 @@ export default function GuidePage() {
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
             Estes são os principais indicadores das suas campanhas no Facebook e Instagram. Veja o que cada um representa para o seu negócio:
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <DemoKpiCard icon={Eye} label="Impressões" value="142.830" delta="12%" positive={true} deltaLabel="vs período anterior" color="cyan" />
             <DemoKpiCard icon={MessageCircle} label="Conversas" value="347" delta="8%" positive={true} deltaLabel="vs período anterior" color="green" />
             <DemoKpiCard icon={DollarSign} label="Investimento" value="R$ 4.280" delta="-3%" positive={false} deltaLabel="vs período anterior" color="orange" />
@@ -656,7 +656,7 @@ export default function GuidePage() {
           <p className="text-zinc-400 text-sm leading-relaxed mb-5">
             A seção de Criativos mostra quais anúncios geraram mais conversas no período. Use isso para entender quais peças estão funcionando melhor com o seu público.
           </p>
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <DemoCreativeCard rank={1} conversas={142} cpr="R$ 8,90" gasto="R$ 1.264" />
             <DemoCreativeCard rank={2} conversas={98} cpr="R$ 11,20" gasto="R$ 1.097" />
             <DemoCreativeCard rank={3} conversas={61} cpr="R$ 15,44" gasto="R$ 941" />
