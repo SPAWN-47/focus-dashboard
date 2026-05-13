@@ -6,12 +6,19 @@ import AdminPage from "./pages/AdminPage";
 import GoogleDashboardPage from "./pages/GoogleDashboardPage";
 import GmbDashboardPage from "./pages/GmbDashboardPage";
 import GuidePage from "./pages/GuidePage";
+import RoiCalculatorPage from "./pages/RoiCalculatorPage";
+import RoiPublicViewPage from "./pages/RoiPublicViewPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 export default function App() {
   const { user } = useAuth();
   const path = window.location.pathname;
+
+  // Rota pública — link compartilhado de plano (sem auth)
+  if (path.startsWith("/r/")) {
+    return <RoiPublicViewPage />;
+  }
 
   if (path === "/forgot-password") {
     return <ForgotPasswordPage />;
@@ -43,6 +50,12 @@ export default function App() {
   if (path === "/dashboard/gmb") {
     if (!user) { window.location.href = "/login"; return null; }
     return <GmbDashboardPage />;
+  }
+
+  if (path === "/dashboard/roi") {
+    if (!user) { window.location.href = "/login"; return null; }
+    if (user.role !== "admin") { window.location.href = "/dashboard"; return null; }
+    return <RoiCalculatorPage />;
   }
 
   if (path === "/guide") {

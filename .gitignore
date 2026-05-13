@@ -13,6 +13,20 @@ config/users.json
 config/clients.json
 # config/clients.seed.json é seguro para commitar (sem tokens reais)
 
+# SQLite database — dados reais de produção, jamais commitar
+config/dashboard.db
+config/dashboard.db-shm
+config/dashboard.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Design docs/notas pessoais
+*.rtf
+
+# Pasta de notas de deploy/planejamento Claude Code
+claude-code-coolify/
+
 # macOS
 .DS_Store
 **/.DS_Store

@@ -65,6 +65,13 @@ import {
   saveResetToken,
   getResetToken,
   markTokenUsed,
+  getRoiPlans,
+  getRoiPlan,
+  saveRoiPlan,
+  deleteRoiPlan,
+  createRoiPlanShareToken,
+  revokeRoiPlanShareToken,
+  getRoiPlanByShareToken,
 } from "./lib/db.js";
 import { Resend } from "resend";
 
@@ -537,6 +544,92 @@ app.delete("/api/alert-rules/:id", (req, res) => {
   if (!requireAdmin(req, res)) return;
   deleteAlertRule(Number(req.params.id));
   res.json({ ok: true });
+});
+
+// ─── ROI PLANS (Calculadora de ROI) ─────────────────────────────────────────
+// Admin-only: lista, cria, atualiza, deleta planos de mídia
+
+app.get("/api/roi/plans", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const clientId = req.query.client || null;
+  try {
+    const plans = getRoiPlans(clientId ? { clientId } : {});
+    res.json(plans);
+  } catch (err) {
+    console.error("[roi] list error:", err.message);
+    res.status(500).json({ error: "Falha ao listar planos" });
+  }
+});
+
+app.get("/api/roi/plans/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const plan = getRoiPlan(req.params.id);
+  if (!plan) return res.status(404).json({ error: "Plano não encontrado" });
+  res.json(plan);
+});
+
+app.post("/api/roi/plans", (req, res) => {
+  const user = requireAdmin(req, res);
+  if (!user) return;
+  const body = req.body || {};
+  if (!body.nome || !body.parametros) {
+    return res.status(400).json({ error: "Campos obrigatórios: nome, parametros" });
+  }
+  try {
+    const id = saveRoiPlan(body, user.username || null);
+    const plan = getRoiPlan(id);
+    res.status(201).json(plan);
+  } catch (err) {
+    console.error("[roi] create error:", err.message);
+    res.status(500).json({ error: "Falha ao salvar plano" });
+  }
+});
+
+app.put("/api/roi/plans/:id", (req, res) => {
+  const user = requireAdmin(req, res);
+  if (!user) return;
+  const existing = getRoiPlan(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Plano não encontrado" });
+  try {
+    const merged = { ...existing, ...req.body, id: req.params.id };
+    saveRoiPlan(merged, user.username || null);
+    res.json(getRoiPlan(req.params.id));
+  } catch (err) {
+    console.error("[roi] update error:", err.message);
+    res.status(500).json({ error: "Falha ao atualizar plano" });
+  }
+});
+
+app.delete("/api/roi/plans/:id", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    deleteRoiPlan(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[roi] delete error:", err.message);
+    res.status(500).json({ error: "Falha ao remover plano" });
+  }
+});
+
+// Share token management (admin)
+app.post("/api/roi/plans/:id/share", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const result = createRoiPlanShareToken(req.params.id);
+  if (!result) return res.status(404).json({ error: "Plano não encontrado" });
+  res.status(result.alreadyExisted ? 200 : 201).json(result);
+});
+
+app.delete("/api/roi/plans/:id/share", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  revokeRoiPlanShareToken(req.params.id);
+  res.json({ ok: true });
+});
+
+// Public share view (sem auth)
+app.get("/api/roi/share/:token", (req, res) => {
+  const plan = getRoiPlanByShareToken(req.params.token);
+  if (!plan) return res.status(404).json({ error: "Plano não encontrado ou link revogado" });
+  res.json(plan);
 });
 
 // Evaluate custom alert rules against live metrics

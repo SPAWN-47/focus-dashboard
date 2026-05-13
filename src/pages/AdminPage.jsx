@@ -1,5 +1,46 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import RoiCalculator from "../components/RoiCalculator";
+import { SEGMENTOS } from "../lib/benchmarks";
+
+// Gera slug a partir de nome — remove acentos, espaços → hífen, lowercase
+// Tooltip "?" inline pra ajudar com credenciais
+function HelpHint({ children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-center align-middle">
+      <button
+        type="button"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen((v) => !v)}
+        className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-400 text-[10px] font-bold hover:bg-zinc-700 hover:text-zinc-200 transition-colors flex items-center justify-center"
+        tabIndex={-1}
+      >
+        ?
+      </button>
+      {open && (
+        <span className="absolute left-6 top-1/2 -translate-y-1/2 z-10 bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 leading-relaxed w-64 shadow-xl pointer-events-none">
+          {children}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function slugify(input) {
+  return (input || "")
+    .toString()
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+}
 
 function ClientNoteField({ clientId, initialNote = "" }) {
   const { authFetch } = useAuth();
@@ -93,7 +134,7 @@ const COLOR_OPTIONS = [
   "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16",
 ];
 
-function ClientModal({ client, onClose, onSave }) {
+function ClientModal({ client, onClose, onSave, existingIds = [] }) {
   const { authFetch } = useAuth();
   const isEdit = !!client;
 
@@ -110,13 +151,64 @@ function ClientModal({ client, onClose, onSave }) {
     target_spend: client?.target_spend || "",
     google_ads_customer_id: client?.google_ads_customer_id || "",
     gmb_location_id: client?.gmb_location_id || "",
+    segmento: client?.segmento || "",
+    email: client?.email || "",
+    telefone: client?.telefone || "",
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // ─── UX state ────────────────────────────────────────────────────────────
+  const [idTouched, setIdTouched] = useState(false);   // slug foi editado manualmente
+  const [showToken, setShowToken] = useState(false);   // toggle de visibilidade
+  const [tab, setTab] = useState("identidade");        // identidade · meta · google · metas
+
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  // Auto-gerar slug a partir do nome enquanto user não tocou no campo
+  useEffect(() => {
+    if (isEdit) return;
+    if (idTouched) return;
+    setForm((p) => ({ ...p, id: slugify(p.name) }));
+  }, [form.name, idTouched, isEdit]);
+
+  // ─── VALIDAÇÕES INLINE ───────────────────────────────────────────────────
+  const idDuplicated = !isEdit && form.id && existingIds.some((x) => x === form.id);
+  const idInvalid = !isEdit && form.id && !/^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(form.id);
+  const accountIdInvalid = form.accountId && !/^act_\d+$/.test(form.accountId);
+  const googleIdInvalid = form.google_ads_customer_id && !/^\d{3}-\d{3}-\d{4}$/.test(form.google_ads_customer_id);
+
+  const emailInvalid = form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+
+  const validations = {
+    name:      { ok: form.name.trim().length >= 2,                msg: "Nome muito curto" },
+    id:        { ok: !idDuplicated && !idInvalid && (isEdit || form.id.length >= 3), msg: idDuplicated ? "Slug já em uso" : idInvalid ? "Use a-z, 0-9 e hífens" : "Min 3 caracteres" },
+    accountId: { ok: !form.accountId || /^act_\d+$/.test(form.accountId), msg: "Formato esperado: act_123456" },
+    google:    { ok: !form.google_ads_customer_id || /^\d{3}-\d{3}-\d{4}$/.test(form.google_ads_customer_id), msg: "Formato: 123-456-7890" },
+    email:     { ok: !emailInvalid, msg: "E-mail inválido" },
+  };
+
+  const canSave = validations.name.ok && validations.id.ok && validations.accountId.ok && validations.google.ok && validations.email.ok;
+
+  // ─── STATUS POR PLATAFORMA ─────────────────────────────────────────────
+  const platformStatus = {
+    meta:   form.accountId && form.token ? "ok" : (form.accountId || form.token) ? "incomplete" : "empty",
+    google: form.google_ads_customer_id ? "ok" : "empty",
+    gmb:    form.gmb_location_id ? "ok" : "empty",
+    metas:  (form.ticket_medio || form.target_cpl_max || form.target_conversas || form.target_spend) ? "ok" : "empty",
+  };
+
+  const StatusDot = ({ status }) => (
+    <span
+      className={`inline-block w-1.5 h-1.5 rounded-full ${
+        status === "ok" ? "bg-emerald-400" :
+        status === "incomplete" ? "bg-amber-400" :
+        "bg-zinc-600"
+      }`}
+    />
+  );
 
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
@@ -161,12 +253,20 @@ function ClientModal({ client, onClose, onSave }) {
             target_spend: parseFloat(form.target_spend) || 0,
             google_ads_customer_id: form.google_ads_customer_id || null,
             gmb_location_id: form.gmb_location_id || null,
+            segmento: form.segmento || null,
+            email: form.email || null,
+            telefone: form.telefone || null,
           }),
         });
       } else {
         res = await authFetch("/api/config/clients", {
           method: "POST",
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            segmento: form.segmento || null,
+            email: form.email || null,
+            telefone: form.telefone || null,
+          }),
         });
       }
       const data = await res.json();
@@ -181,40 +281,202 @@ function ClientModal({ client, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">
               {isEdit ? "Editar Cliente" : "Novo Cliente"}
             </h2>
-            <button onClick={onClose} className="text-zinc-400 hover:text-white transition">
+            <button onClick={onClose} className="text-zinc-400 hover:text-white transition" title="Fechar (Esc)">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          <div className="space-y-4">
-            {!isEdit && (
-              <div>
-                <label className="block text-sm text-zinc-400 mb-1.5">ID (slug único)</label>
-                <input
-                  value={form.id}
-                  onChange={(e) => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-                  placeholder="ex: minha-empresa"
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D]"
-                />
+          {/* ─── PREVIEW DO CARD DO CLIENTE ─── */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 mb-4 flex items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${form.color}30, ${form.color}10)`,
+                border: `1.5px solid ${form.color}60`,
+              }}
+            >
+              {form.emoji}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-white truncate">
+                {form.name || <span className="text-zinc-600 italic">Nome do cliente</span>}
               </div>
-            )}
+              <div className="text-[11px] text-zinc-500 font-mono truncate">
+                {form.id || <span className="italic">slug-do-cliente</span>}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {form.segmento && SEGMENTOS[form.segmento] && (
+                  <span className="text-[10px] text-zinc-400">
+                    {SEGMENTOS[form.segmento].emoji} {SEGMENTOS[form.segmento].nome}
+                  </span>
+                )}
+                {form.email && (
+                  <span className="text-[10px] text-zinc-500 truncate">
+                    · {form.email}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="hidden sm:flex flex-col items-end gap-1 text-[10px] text-zinc-500 shrink-0">
+              <span className="flex items-center gap-1.5"><StatusDot status={platformStatus.meta} /> Meta</span>
+              <span className="flex items-center gap-1.5"><StatusDot status={platformStatus.google} /> Google</span>
+              <span className="flex items-center gap-1.5"><StatusDot status={platformStatus.gmb} /> GMB</span>
+            </div>
+          </div>
 
+          {/* ─── TABS ─── */}
+          <div className="flex gap-0.5 mb-4 bg-zinc-950 border border-zinc-800 rounded-xl p-1 overflow-x-auto whitespace-nowrap">
+            {[
+              { id: "identidade", label: "Identidade", status: form.name && form.id ? "ok" : "empty" },
+              { id: "meta",       label: "Meta Ads",   status: platformStatus.meta },
+              { id: "google",     label: "Google",     status: platformStatus.google },
+              { id: "metas",      label: "Metas",      status: platformStatus.metas },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                  tab === t.id
+                    ? "bg-zinc-800 text-white border border-zinc-700"
+                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent"
+                }`}
+              >
+                <StatusDot status={t.status} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            {tab === "identidade" && <>
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Nome</label>
+              <label className="block text-sm text-zinc-400 mb-1.5">Nome do cliente</label>
               <input
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
-                placeholder="Nome do cliente"
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D]"
+                placeholder="Ex: Clínica Dr. João"
+                className={`w-full bg-zinc-800 border text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors ${
+                  form.name && !validations.name.ok ? "border-red-500/50" : "border-zinc-700 focus:border-[#C9F80D]"
+                }`}
               />
+              {form.name && !validations.name.ok && (
+                <p className="text-[10px] text-red-400 mt-1">{validations.name.msg}</p>
+              )}
+            </div>
+
+            {!isEdit && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm text-zinc-400">ID (slug único)</label>
+                  {!idTouched && form.id && (
+                    <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      auto-gerado
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    value={form.id}
+                    onChange={(e) => {
+                      setIdTouched(true);
+                      set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 32));
+                    }}
+                    placeholder="ex: clinica-dr-joao"
+                    className={`w-full bg-zinc-800 border text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors font-mono pr-20 ${
+                      form.id && !validations.id.ok ? "border-red-500/50" : form.id && validations.id.ok ? "border-emerald-500/30" : "border-zinc-700 focus:border-[#C9F80D]"
+                    }`}
+                  />
+                  {idTouched && (
+                    <button
+                      type="button"
+                      onClick={() => { setIdTouched(false); set("id", slugify(form.name)); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 hover:text-[#C9F80D] bg-zinc-900 border border-zinc-700 rounded px-2 py-1"
+                      title="Voltar a auto-gerar do nome"
+                    >
+                      auto
+                    </button>
+                  )}
+                </div>
+                {form.id && !validations.id.ok ? (
+                  <p className="text-[10px] text-red-400 mt-1">{validations.id.msg}</p>
+                ) : form.id && validations.id.ok ? (
+                  <p className="text-[10px] text-emerald-400 mt-1">✓ Disponível</p>
+                ) : (
+                  <p className="text-[10px] text-zinc-600 mt-1">Usado em URLs e logins · a-z, 0-9, hífen</p>
+                )}
+              </div>
+            )}
+
+            {/* CONTATO — email + telefone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                  E-mail
+                  <span className="text-[10px] text-zinc-600">opcional</span>
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value.trim())}
+                  placeholder="contato@cliente.com.br"
+                  className={`w-full bg-zinc-800 border text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors ${
+                    emailInvalid ? "border-red-500/50" : form.email ? "border-emerald-500/30" : "border-zinc-700 focus:border-[#C9F80D]"
+                  }`}
+                />
+                {emailInvalid && (
+                  <p className="text-[10px] text-red-400 mt-1">{validations.email.msg}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                  Telefone
+                  <span className="text-[10px] text-zinc-600">opcional</span>
+                </label>
+                <input
+                  type="tel"
+                  value={form.telefone}
+                  onChange={(e) => set("telefone", e.target.value)}
+                  placeholder="(43) 99999-9999"
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D]"
+                />
+              </div>
+            </div>
+
+            {/* SEGMENTO */}
+            <div>
+              <label className="block text-sm text-zinc-400 mb-1.5">
+                Segmento / Nicho
+                <span className="text-[10px] text-zinc-600 ml-2 normal-case font-normal">(habilita benchmarks na Calculadora ROI)</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={form.segmento}
+                  onChange={(e) => set("segmento", e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] appearance-none cursor-pointer pr-10"
+                >
+                  <option value="">— Não definido —</option>
+                  {Object.entries(SEGMENTOS).map(([id, s]) => (
+                    <option key={id} value={id}>
+                      {s.emoji} {s.nome}
+                    </option>
+                  ))}
+                </select>
+                <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -253,45 +515,165 @@ function ClientModal({ client, onClose, onSave }) {
                 </div>
               </div>
             </div>
+            </>}
 
+            {tab === "meta" && <>
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Account ID (Meta)</label>
+              <label className="block text-sm text-zinc-400 mb-1.5 flex items-center gap-1.5">
+                Account ID (Meta)
+                <HelpHint>
+                  Em <b>business.facebook.com</b> → Configurações → Contas de anúncio. O ID começa com <code className="bg-zinc-800 px-1 rounded">act_</code> seguido de números.
+                </HelpHint>
+              </label>
               <input
                 value={form.accountId}
-                onChange={(e) => set("accountId", e.target.value)}
+                onChange={(e) => set("accountId", e.target.value.trim())}
                 placeholder="act_123456789"
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono"
+                className={`w-full bg-zinc-800 border text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors font-mono ${
+                  accountIdInvalid ? "border-red-500/50" : form.accountId ? "border-emerald-500/30" : "border-zinc-700 focus:border-[#C9F80D]"
+                }`}
               />
+              {accountIdInvalid && (
+                <p className="text-[10px] text-red-400 mt-1">Formato esperado: <code className="bg-zinc-800 px-1 rounded">act_</code> + números</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5">Access Token (Meta)</label>
-              <textarea
-                value={form.token}
-                onChange={(e) => set("token", e.target.value)}
-                placeholder="EAABx..."
-                rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono resize-none"
-              />
-            </div>
-
-            {/* Google Ads */}
-            <div className="border-t border-zinc-800 pt-4">
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Google Ads</p>
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">Customer ID (Google Ads)</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm text-zinc-400 flex items-center gap-1.5">
+                  Access Token (Meta)
+                  <HelpHint>
+                    Em <b>developers.facebook.com</b> → Meu Apps → Sua App → Marketing API → Tools → Get Token. Use token de longa duração com permissão <code className="bg-zinc-800 px-1 rounded">ads_read</code>.
+                  </HelpHint>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowToken((v) => !v)}
+                  className="text-[10px] text-zinc-400 hover:text-zinc-200 flex items-center gap-1"
+                  title={showToken ? "Ocultar" : "Mostrar"}
+                >
+                  {showToken ? (
+                    <>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                      Ocultar
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Mostrar
+                    </>
+                  )}
+                </button>
+              </div>
+              {showToken ? (
+                <textarea
+                  value={form.token}
+                  onChange={(e) => set("token", e.target.value)}
+                  placeholder="EAABx..."
+                  rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono resize-none"
+                />
+              ) : (
                 <input
-                  value={form.google_ads_customer_id}
-                  onChange={(e) => set("google_ads_customer_id", e.target.value)}
-                  placeholder="ex: 123-456-7890"
+                  type="password"
+                  value={form.token}
+                  onChange={(e) => set("token", e.target.value)}
+                  placeholder="••••••••••••"
                   className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9F80D] font-mono"
                 />
-                <p className="text-[10px] text-zinc-600 mt-1">Apenas o número da conta. Ex: 123-456-7890</p>
+              )}
+              {form.token && (
+                <p className="text-[10px] text-zinc-600 mt-1">
+                  {form.token.length} caracteres · {form.token.slice(0, 4)}…{form.token.slice(-4)}
+                </p>
+              )}
+            </div>
+
+            {/* Test Connection (Meta) */}
+            <button
+              onClick={testConnection}
+              disabled={testing || !form.token || !form.accountId}
+              className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 border border-zinc-700 text-zinc-200 rounded-xl py-2.5 text-sm transition"
+            >
+              {testing ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Testando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Testar conexão Meta
+                </>
+              )}
+            </button>
+
+            {testResult && (
+              <div
+                className={`rounded-xl px-4 py-3 text-sm ${
+                  testResult.success
+                    ? "bg-green-500/10 border border-green-500/30 text-green-400"
+                    : "bg-red-500/10 border border-red-500/30 text-red-400"
+                }`}
+              >
+                {testResult.success
+                  ? `✓ Conexão OK! Spend ontem: R$ ${testResult.data?.spend || "0"}`
+                  : `✗ ${testResult.error}`}
+              </div>
+            )}
+            </>}
+
+            {tab === "google" && <>
+            <div className="flex items-start gap-2 text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+              <svg className="w-3.5 h-3.5 text-zinc-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>
+                A integração de Google Ads e GMB usa as credenciais OAuth globais do dashboard.
+                Aqui você só informa os IDs das contas — o token de acesso é gerenciado no servidor.
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Google Ads</p>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+                  Customer ID (Google Ads)
+                  <HelpHint>
+                    Canto superior direito do <b>ads.google.com</b>, ao lado do nome da conta. Formato: <code className="bg-zinc-800 px-1 rounded">XXX-XXX-XXXX</code> com hífens.
+                  </HelpHint>
+                </label>
+                <input
+                  value={form.google_ads_customer_id}
+                  onChange={(e) => set("google_ads_customer_id", e.target.value.trim())}
+                  placeholder="ex: 123-456-7890"
+                  className={`w-full bg-zinc-800 border text-white placeholder-zinc-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition-colors font-mono ${
+                    googleIdInvalid ? "border-red-500/50" : form.google_ads_customer_id ? "border-emerald-500/30" : "border-zinc-700 focus:border-[#C9F80D]"
+                  }`}
+                />
+                <p className={`text-[10px] mt-1 ${googleIdInvalid ? "text-red-400" : "text-zinc-600"}`}>
+                  {googleIdInvalid ? "Formato esperado: 123-456-7890 (com hífens)" : "Apenas o número da conta. Ex: 123-456-7890"}
+                </p>
               </div>
 
               {/* GMB Location ID */}
               <div className="mt-3">
-                <label className="block text-xs text-zinc-400 mb-1">Location ID (Google Meu Negócio)</label>
+                <label className="block text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+                  Location ID (Google Meu Negócio)
+                  <HelpHint>
+                    Em <b>business.google.com/locations</b>, clique no local → URL termina com <code className="bg-zinc-800 px-1 rounded">/l/{"{id}"}</code>. Use só o ID numérico.
+                  </HelpHint>
+                </label>
                 <input
                   value={form.gmb_location_id}
                   onChange={(e) => set("gmb_location_id", e.target.value)}
@@ -301,10 +683,20 @@ function ClientModal({ client, onClose, onSave }) {
                 <p className="text-[10px] text-zinc-600 mt-1">ID numérico da localização. Encontre em business.google.com/locations</p>
               </div>
             </div>
+            </>}
 
-            {/* Targets */}
-            <div className="border-t border-zinc-800 pt-4">
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Metas</p>
+            {tab === "metas" && <>
+            <div className="flex items-start gap-2 text-[11px] text-zinc-400 bg-zinc-950 border border-zinc-800 rounded-lg p-3">
+              <svg className="w-3.5 h-3.5 text-[#C9F80D] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span>
+                <b className="text-zinc-200">Tudo opcional</b> — você pode salvar o cliente sem metas e completar depois. Quando preenchidas, são usadas como referência no dashboard (limite de CPL, comparativos) e auto-preenchem a Calculadora ROI.
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Metas mensais</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Ticket Médio (R$)</label>
@@ -356,44 +748,7 @@ function ClientModal({ client, onClose, onSave }) {
                 </div>
               </div>
             </div>
-
-            {/* Test Connection */}
-            <button
-              onClick={testConnection}
-              disabled={testing || !form.token || !form.accountId}
-              className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 border border-zinc-700 text-zinc-200 rounded-xl py-2.5 text-sm transition"
-            >
-              {testing ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Testando...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Testar Conexão
-                </>
-              )}
-            </button>
-
-            {testResult && (
-              <div
-                className={`rounded-xl px-4 py-3 text-sm ${
-                  testResult.success
-                    ? "bg-green-500/10 border border-green-500/30 text-green-400"
-                    : "bg-red-500/10 border border-red-500/30 text-red-400"
-                }`}
-              >
-                {testResult.success
-                  ? `✓ Conexão OK! Spend ontem: R$ ${testResult.data?.spend || "0"}`
-                  : `✗ ${testResult.error}`}
-              </div>
-            )}
+            </>}
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
@@ -410,10 +765,16 @@ function ClientModal({ client, onClose, onSave }) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="flex-1 bg-[#C9F80D] hover:bg-[#b8e00c] disabled:opacity-50 text-zinc-950 font-semibold rounded-xl py-2.5 text-sm transition"
+                disabled={saving || !canSave}
+                className="flex-1 bg-[#C9F80D] hover:bg-[#b8e00c] disabled:opacity-50 disabled:cursor-not-allowed text-zinc-950 font-semibold rounded-xl py-2.5 text-sm transition flex items-center justify-center gap-2"
               >
-                {saving ? "Salvando..." : "Salvar"}
+                {saving && (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                  </svg>
+                )}
+                {saving ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar cliente"}
               </button>
             </div>
           </div>
@@ -1155,6 +1516,347 @@ function MiniSparkline({ days, metric = "conversas", color }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// CONNECTIONS MANAGER — Conexões & API tab
+// ─────────────────────────────────────────────
+function ConnectionsManager({ clients, loading, onEdit, onDelete, onNew }) {
+  const { authFetch } = useAuth();
+  const [expanded, setExpanded] = useState(null); // client id
+  const [testing, setTesting] = useState(null);   // client id being tested (Meta)
+  const [results, setResults] = useState({});     // { clientId: { success, msg } }
+  const [search, setSearch] = useState("");
+
+  const platformStatus = (c) => ({
+    meta:   Boolean(c.accountId && c.token),
+    google: Boolean(c.google_ads_customer_id),
+    gmb:    Boolean(c.gmb_location_id),
+  });
+
+  const stats = {
+    total: clients.length,
+    meta:   clients.filter((c) => c.accountId && c.token).length,
+    google: clients.filter((c) => c.google_ads_customer_id).length,
+    gmb:    clients.filter((c) => c.gmb_location_id).length,
+  };
+
+  const mask = (token, head = 8, tail = 4) => {
+    if (!token) return "—";
+    if (token.length <= head + tail) return token;
+    return `${token.slice(0, head)}${"•".repeat(8)}${token.slice(-tail)}`;
+  };
+
+  const testMeta = async (c) => {
+    if (!c.token || !c.accountId) return;
+    setTesting(c.id);
+    setResults((r) => ({ ...r, [c.id]: null }));
+    try {
+      const res = await authFetch("/api/config/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: c.token, accountId: c.accountId }),
+      });
+      const data = await res.json();
+      setResults((r) => ({
+        ...r,
+        [c.id]: data.success
+          ? { success: true, msg: `OK · Spend ontem R$ ${data.data?.spend || "0"}` }
+          : { success: false, msg: data.error || "Falha no teste" },
+      }));
+    } catch {
+      setResults((r) => ({ ...r, [c.id]: { success: false, msg: "Erro de rede" } }));
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  const filtered = clients.filter((c) =>
+    !search ? true : c.name.toLowerCase().includes(search.toLowerCase()) || c.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const StatCard = ({ label, value, total, color, emoji }) => (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 flex items-center gap-3">
+      <span className="text-2xl">{emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">{label}</div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-lg font-bold tabular-nums" style={{ color }}>{value}</span>
+          {total !== undefined && (
+            <span className="text-xs text-zinc-600">/ {total}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const PlatformBadge = ({ ok, emoji, label }) => (
+    <div
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
+        ok
+          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+          : "bg-zinc-800/50 border-zinc-700 text-zinc-500"
+      }`}
+    >
+      <span>{emoji}</span>
+      <span className="hidden sm:inline">{label}</span>
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-zinc-600"}`} />
+    </div>
+  );
+
+  const FieldRow = ({ label, value, mono = true, action }) => (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <span className="text-[11px] text-zinc-500 shrink-0">{label}</span>
+      <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+        <span className={`text-xs ${mono ? "font-mono" : ""} text-zinc-300 truncate text-right`}>
+          {value || <span className="text-zinc-600 italic">não configurado</span>}
+        </span>
+        {action}
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <h2 className="text-xl font-bold">Conexões & API</h2>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <svg className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente..."
+              className="pl-8 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 outline-none focus:border-[#C9F80D]/50 w-48"
+            />
+          </div>
+          <button
+            onClick={onNew}
+            className="flex items-center gap-2 bg-[#C9F80D] hover:bg-[#b8e00c] text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2 transition"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Nova Conexão
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <StatCard label="Clientes" value={stats.total}  color="#C9F80D" emoji="👥" />
+        <StatCard label="Meta Ads"    value={stats.meta}   total={stats.total} color="#3B82F6" emoji="📘" />
+        <StatCard label="Google Ads"  value={stats.google} total={stats.total} color="#F59E0B" emoji="🔵" />
+        <StatCard label="Meu Negócio" value={stats.gmb}    total={stats.total} color="#10B981" emoji="📍" />
+      </div>
+
+      {/* Per-client cards */}
+      {loading ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">Carregando...</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+          <div className="text-3xl mb-2">🔌</div>
+          <div className="text-sm text-zinc-400 mb-1">Nenhuma conexão configurada</div>
+          <div className="text-xs text-zinc-600">Clique em "Nova Conexão" para começar.</div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((c) => {
+            const status = platformStatus(c);
+            const isExpanded = expanded === c.id;
+            const result = results[c.id];
+
+            return (
+              <div
+                key={c.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden transition-colors hover:border-zinc-700"
+              >
+                {/* Header (clickable) */}
+                <button
+                  onClick={() => setExpanded(isExpanded ? null : c.id)}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-zinc-800/30 transition-colors"
+                >
+                  <span className="text-2xl shrink-0">{c.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-white truncate">{c.name}</div>
+                    <div className="text-[11px] text-zinc-500 font-mono truncate">{c.id}</div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    <PlatformBadge ok={status.meta}   emoji="📘" label="Meta" />
+                    <PlatformBadge ok={status.google} emoji="🔵" label="Google" />
+                    <PlatformBadge ok={status.gmb}    emoji="📍" label="GMB" />
+                  </div>
+                  <svg
+                    className={`w-4 h-4 text-zinc-500 transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+
+                {/* Mobile platform badges */}
+                <div className="sm:hidden flex items-center gap-1.5 px-4 pb-3">
+                  <PlatformBadge ok={status.meta}   emoji="📘" label="Meta" />
+                  <PlatformBadge ok={status.google} emoji="🔵" label="Google" />
+                  <PlatformBadge ok={status.gmb}    emoji="📍" label="GMB" />
+                </div>
+
+                {/* Expanded */}
+                {isExpanded && (
+                  <div className="border-t border-zinc-800 bg-zinc-950/40 p-4 space-y-4">
+                    {/* META */}
+                    <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span>📘</span>
+                          <span className="text-xs font-semibold text-zinc-200">Meta Ads</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            status.meta ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-700 text-zinc-500"
+                          }`}>
+                            {status.meta ? "Conectado" : "Não configurado"}
+                          </span>
+                        </div>
+                        {status.meta && (
+                          <button
+                            onClick={() => testMeta(c)}
+                            disabled={testing === c.id}
+                            className="text-[11px] px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 disabled:opacity-50"
+                          >
+                            {testing === c.id ? "Testando..." : "Testar conexão"}
+                          </button>
+                        )}
+                      </div>
+                      <FieldRow label="Account ID" value={c.accountId} />
+                      <FieldRow label="Access Token" value={mask(c.token)} />
+                      {result && (
+                        <div className={`mt-2 text-[11px] rounded-md px-2.5 py-1.5 border ${
+                          result.success
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                            : "bg-red-500/10 border-red-500/30 text-red-400"
+                        }`}>
+                          {result.success ? "✓ " : "✗ "}{result.msg}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GOOGLE ADS */}
+                    <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span>🔵</span>
+                          <span className="text-xs font-semibold text-zinc-200">Google Ads</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            status.google ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-700 text-zinc-500"
+                          }`}>
+                            {status.google ? "Conectado" : "Não configurado"}
+                          </span>
+                        </div>
+                      </div>
+                      <FieldRow label="Customer ID" value={c.google_ads_customer_id} />
+                    </div>
+
+                    {/* GMB */}
+                    <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span>📍</span>
+                          <span className="text-xs font-semibold text-zinc-200">Google Meu Negócio</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            status.gmb ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-700 text-zinc-500"
+                          }`}>
+                            {status.gmb ? "Conectado" : "Não configurado"}
+                          </span>
+                        </div>
+                      </div>
+                      <FieldRow label="Location ID" value={c.gmb_location_id} />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <a
+                        href={`/dashboard?client=${c.id}`}
+                        className="text-[11px] px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 flex items-center gap-1.5"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M7 17 17 7M7 7h10v10" />
+                        </svg>
+                        Abrir dashboard
+                      </a>
+                      <button
+                        onClick={() => onEdit(c)}
+                        className="text-[11px] px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300"
+                      >
+                        Editar credenciais
+                      </button>
+                      <button
+                        onClick={() => onDelete(c)}
+                        className="text-[11px] px-3 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Credenciais de acesso ao dashboard */}
+      <div className="mt-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <h3 className="text-sm font-semibold text-zinc-200">Credenciais de Acesso ao Dashboard</h3>
+          </div>
+          <span className="text-[10px] text-zinc-500">{clients.length} contas</span>
+        </div>
+        {clients.length === 0 ? (
+          <div className="text-xs text-zinc-500 text-center py-4">Nenhum cliente cadastrado.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {clients.map((c) => {
+              const username = c.id.replace(/-/g, "");
+              return (
+                <div key={c.id} className="bg-zinc-800 rounded-xl p-3 border border-zinc-700/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span>{c.emoji}</span>
+                    <span className="text-sm font-medium text-white truncate">{c.name}</span>
+                  </div>
+                  <div className="font-mono text-xs space-y-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-zinc-600">login:</span>
+                      <span className="text-zinc-300 truncate">{username}</span>
+                      <button
+                        onClick={() => navigator.clipboard?.writeText(username)}
+                        className="ml-auto text-zinc-500 hover:text-zinc-300"
+                        title="Copiar login"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="text-zinc-600 italic text-[10px]">Senha definida no 1º acesso</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-[10px] text-zinc-600 mt-3">
+          Para alterar senhas, edite <code className="bg-zinc-800 px-1 rounded">config/users.json</code> no servidor.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, authFetch, logout } = useAuth();
   const [tab, setTab] = useState("clientes");
@@ -1375,6 +2077,7 @@ export default function AdminPage() {
             { id: "campanhas", label: "Campanhas" },
             { id: "alertas", label: "Alertas" },
             { id: "relatorios", label: "Relatórios" },
+            { id: "roi", label: "Calculadora ROI" },
             { id: "conexoes", label: "Conexões & API" },
           ].map((t) => (
             <button
@@ -2450,107 +3153,18 @@ export default function AdminPage() {
         })()}
 
         {/* TAB: Conexões */}
+        {tab === "roi" && (
+          <RoiCalculator embedded />
+        )}
+
         {tab === "conexoes" && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Conexões & API</h2>
-              <button
-                onClick={() => setModal("new")}
-                className="flex items-center gap-2 bg-[#C9F80D] hover:bg-[#b8e00c] text-zinc-950 text-sm font-semibold rounded-xl px-4 py-2.5 transition"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Nova Conexão
-              </button>
-            </div>
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-              {loading ? (
-                <div className="p-8 text-center text-zinc-500">Carregando...</div>
-              ) : clients.length === 0 ? (
-                <div className="p-8 text-center text-zinc-500">Nenhuma conexão configurada.</div>
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Cliente</th>
-                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Account ID</th>
-                      <th className="text-left text-xs text-zinc-500 font-medium px-6 py-3">Token</th>
-                      <th className="text-right text-xs text-zinc-500 font-medium px-6 py-3">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clients.map((c, i) => (
-                      <tr
-                        key={c.id}
-                        className={`${i < clients.length - 1 ? "border-b border-zinc-800" : ""}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2.5">
-                            <span className="text-xl">{c.emoji}</span>
-                            <div>
-                              <p className="text-sm font-medium text-white">{c.name}</p>
-                              <p className="text-xs text-zinc-500 font-mono">{c.id}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-mono text-zinc-400">{c.accountId}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-mono text-zinc-500">
-                            {c.token ? `${c.token.slice(0, 12)}...${c.token.slice(-6)}` : "—"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setModal(c)}
-                              className="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm(c)}
-                              className="text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition"
-                            >
-                              Remover
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Users info */}
-            <div className="mt-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
-              <h3 className="text-sm font-semibold text-zinc-300 mb-3">Credenciais de Acesso</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {clients.map((c) => {
-                  const username = c.id.replace(/-/g, "");
-                  return (
-                    <div key={c.id} className="bg-zinc-800 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span>{c.emoji}</span>
-                        <span className="text-sm font-medium text-white">{c.name}</span>
-                      </div>
-                      <div className="font-mono text-xs text-zinc-400 space-y-0.5">
-                        <div><span className="text-zinc-600">login: </span>{username}</div>
-                        <div className="text-zinc-600 italic">Senha definida no primeiro acesso</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-zinc-600 mt-3">
-                * Para alterar senhas, edite config/users.json diretamente no servidor.
-              </p>
-            </div>
-          </div>
+          <ConnectionsManager
+            clients={clients}
+            loading={loading}
+            onEdit={(c) => setModal(c)}
+            onDelete={(c) => setDeleteConfirm(c)}
+            onNew={() => setModal("new")}
+          />
         )}
       </div>
 
@@ -2560,6 +3174,7 @@ export default function AdminPage() {
           client={modal === "new" ? null : modal}
           onClose={() => setModal(null)}
           onSave={handleSaved}
+          existingIds={clients.map((c) => c.id)}
         />
       )}
 

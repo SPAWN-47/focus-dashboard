@@ -4,10 +4,10 @@ export default function PlatformNav({ active }) {
   const qs = clientParam ? `?client=${clientParam}` : "";
 
   const tabs = [
-    { id: "meta",   label: "Meta Ads",   href: `/dashboard${qs}`,        emoji: "📘", soon: false },
-    { id: "google", label: "Google Ads", href: `/dashboard/google${qs}`, emoji: "🔵", soon: false },
-    { id: "gmb",    label: "Meu Negócio",href: `/dashboard/gmb${qs}`,    emoji: "📍", soon: false },
-    { id: "guide",  label: "Guia",       href: "/guide",                  emoji: "📖", soon: true },
+    { id: "meta",   label: "Meta Ads",    href: `/dashboard${qs}`,        emoji: "📘", soon: false },
+    { id: "google", label: "Google Ads",  href: `/dashboard/google${qs}`, emoji: "🔵", soon: false },
+    { id: "gmb",    label: "Meu Negócio", href: `/dashboard/gmb${qs}`,    emoji: "📍", soon: false },
+    { id: "guide",  label: "Guia",        href: "/guide",                  emoji: "📖", soon: true },
   ];
 
   return (

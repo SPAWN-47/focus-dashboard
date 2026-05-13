@@ -1,5 +1,5 @@
 {
-  "name": "focus-page",
+  "name": "focus-dashboard",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,6 +11,7 @@
     "migrate": "node scripts/migrate-passwords.js"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
     "axios": "^1.13.6",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
@@ -24,6 +25,7 @@
     "node-cron": "^4.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "recharts": "^3.8.1",
     "resend": "^6.9.4"
   },
   "devDependencies": {
