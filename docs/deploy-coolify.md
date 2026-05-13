@@ -1,6 +1,7 @@
 # Deploy no Coolify
 
-Este projeto pode ser publicado no Coolify sem Railway usando o buildpack do Node/Nixpacks.
+Este projeto roda no Coolify usando o buildpack Nixpacks (recomendado) ou o
+`Dockerfile` incluído.
 
 ## Configuracao da aplicacao
 
@@ -11,33 +12,45 @@ Este projeto pode ser publicado no Coolify sem Railway usando o buildpack do Nod
 - Start Command: `npm start`
 - Health Check Path: `/health`
 
-## Variaveis de ambiente
+## Volume persistente — **CRÍTICO**
 
-Use estas variaveis no Coolify:
+Crie um volume persistente no Coolify e **monte em `/data`**.
+
+O `lib/db.js` resolve o diretório do banco nesta ordem:
+
+1. `process.env.DATA_DIR` (se setada)
+2. `/data` (auto-detecta se o volume existir) ← **convenção recomendada**
+3. `/app/config` (Dockerfile fallback)
+4. `./config` (dev local)
+
+No log de boot, a app loga onde está o banco:
+
+```
+[db] Data directory: /data (/data (Coolify volume))
+[db] Database path: /data/dashboard.db
+```
+
+Arquivos persistidos:
+
+- `/data/dashboard.db` (SQLite — users, clients, ROI plans, insights cache)
+- `/data/dashboard.db-wal` e `/data/dashboard.db-shm` (journal WAL)
+
+## Variaveis de ambiente
 
 ```env
 DATA_DIR=/data
 JWT_SECRET=gere-um-segredo-longo-e-aleatorio
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=defina-uma-senha-forte
+NODE_ENV=production
 ```
 
 Observacoes:
 
-- `DATA_DIR=/data` faz o app gravar `users.json` e `clients.json` fora do codigo.
+- `DATA_DIR=/data` é **opcional** se o volume estiver em `/data` (auto-detect),
+  mas recomendado pra ser explícito.
 - `ADMIN_PASSWORD` recria ou atualiza a senha do admin no bootstrap.
-- `PORT` nao precisa ser fixado manualmente se o Coolify injetar a porta de runtime.
-
-## Volume persistente
-
-Crie um volume persistente no Coolify e monte em `/data`.
-
-Arquivos esperados nesse volume:
-
-- `/data/users.json`
-- `/data/clients.json`
-
-No primeiro deploy, `npm start` executa `scripts/init-data.js` e cria esses arquivos se eles nao existirem.
+- `PORT` é injetada pelo Coolify automaticamente.
 
 ## Primeiro acesso
 
@@ -45,27 +58,26 @@ No primeiro deploy, `npm start` executa `scripts/init-data.js` e cria esses arqu
 2. Aguarde o healthcheck responder em `/health`.
 3. Acesse `/login`.
 4. Entre com `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
-5. Va para `/admin` e recrie os clientes.
+5. Va para `/admin` e cadastre os clientes.
 
-## Recriacao dos dados
+## Validacao rapida pos-deploy
 
-Sem o volume antigo do Railway, os dados precisam ser recriados.
-
-- Usuarios admin: sao inicializados por `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
-- Usuarios cliente: sao gerados automaticamente ao criar um cliente no painel admin.
-- Clientes: precisam ser cadastrados novamente com `id`, `name`, `token` e `accountId`.
-
-Estruturas de referencia:
-
-- `config/users.example.json`
-- `config/clients.example.json`
-- `.env.coolify.example`
-
-## Validacao rapida
-
-Depois do deploy, confirme:
-
-- `GET /health` retorna `200` com `{\"ok\":true}`
+- `GET /health` retorna `200` com `{"ok":true}`
+- No log da aplicação aparece `[db] Data directory: /data (...)`
 - `POST /api/auth/login` aceita o admin configurado
-- o login redireciona para `/admin`
-- reiniciar a aplicacao nao apaga `users.json` e `clients.json`
+- O login redireciona para `/admin`
+- **Reiniciar a aplicação não apaga os dados** (volume persistente OK)
+
+## Troubleshooting
+
+### "Dados sumiram depois de redeploy"
+
+Significa que o volume não está montado ou não está em `/data`. Verifique:
+
+1. O log de boot mostra qual path está sendo usado (`Data directory: ...`)
+2. No painel Coolify, confirme o volume montado em `/data`
+3. Se necessário, force `DATA_DIR=/data` nas env vars
+
+### "Permission denied" no volume
+
+Garanta que o volume foi criado pelo Coolify (com owner correto) e não manualmente.
