@@ -4,6 +4,7 @@ import {
   ArrowLeft, LogOut, Search, TrendingUp, TrendingDown,
   MousePointer, Eye, Target, DollarSign, BarChart3, Zap,
   ChevronDown, ChevronUp, Settings, PlayCircle, FileDown, RefreshCw,
+  Sparkles, ShoppingBag, Banknote, AlertCircle, CheckCircle2, XCircle, MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -183,6 +184,126 @@ const StatusDot = ({ status }) => {
       <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400" : "bg-zinc-600"}`} />
       {isActive ? "Ativo" : "Pausado"}
     </span>
+  );
+};
+
+// ─────────────────────────────────────────────
+// HERO NARRATIVA — frase-resumo do período (Google)
+// ─────────────────────────────────────────────
+const HeroNarrativa = ({ metrics, period, periodLabel, clientName }) => {
+  if (!metrics || metrics.conversas === 0) return null;
+  const periodTextMap = {
+    daily:   "ontem",
+    weekly:  "na semana passada",
+    monthly: `em ${periodLabel.toLowerCase()}`,
+  };
+  const periodText = periodTextMap[period] || periodLabel;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4 sm:p-5"
+    >
+      <div className="text-sm sm:text-base text-zinc-200 leading-relaxed">
+        {clientName && <span className="text-zinc-500">{clientName} · </span>}
+        <span className="text-zinc-400">{periodText.charAt(0).toUpperCase() + periodText.slice(1)} você investiu </span>
+        <span className="font-bold text-[#C9F80D]">{fBRL0(metrics.gasto)}</span>
+        <span className="text-zinc-400"> no Google Ads e gerou </span>
+        <span className="font-bold text-emerald-400">{fNum(metrics.conversas)} {metrics.conversas === 1 ? "conversão" : "conversões"}</span>
+        <span className="text-zinc-400">. </span>
+        {metrics.cpl > 0 && (
+          <>
+            <span className="text-zinc-400">Custo por conversão: </span>
+            <span className="font-bold text-sky-400">{fBRL0(metrics.cpl)}</span>
+            <span className="text-zinc-400">.</span>
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// META PROGRESS — anel circular do progresso de conversões
+// ─────────────────────────────────────────────
+const MetaProgress = ({ atual, meta, color = "#C9F80D" }) => {
+  if (!meta || meta <= 0) return null;
+  const pct = Math.min(100, (atual / meta) * 100);
+  const R = 40;
+  const C = 2 * Math.PI * R;
+  const offset = C * (1 - pct / 100);
+  const remaining = Math.max(0, meta - atual);
+  const status = pct >= 100 ? "Meta batida!" : pct >= 75 ? "Quase lá" : pct >= 40 ? "No ritmo" : "Acelerar";
+  const statusColor = pct >= 100 ? "#10B981" : pct >= 75 ? color : pct >= 40 ? "#F59E0B" : "#EF4444";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+    >
+      <div className="relative shrink-0">
+        <svg width="100" height="100" viewBox="0 0 100 100" className="-rotate-90">
+          <circle cx="50" cy="50" r={R} stroke="#27272a" strokeWidth="8" fill="none" />
+          <motion.circle
+            cx="50" cy="50" r={R}
+            stroke={statusColor} strokeWidth="8" fill="none" strokeLinecap="round"
+            strokeDasharray={C}
+            initial={{ strokeDashoffset: C }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-lg font-bold tabular-nums text-zinc-100">{pct.toFixed(0)}%</span>
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: statusColor }}>{status}</div>
+        <div className="text-sm font-bold text-zinc-100 mb-1">
+          <span className="tabular-nums">{fNum(atual)}</span>
+          <span className="text-zinc-500"> / {fNum(meta)} conversões</span>
+        </div>
+        <div className="text-[11px] text-zinc-500">
+          {pct >= 100 ? `+${fNum(atual - meta)} acima da meta 🎉` : `Faltam ${fNum(remaining)} para bater a meta`}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// CPL STATUS — semáforo simples
+// ─────────────────────────────────────────────
+const CplStatus = ({ cpl, conversas, targetCplMax = 0 }) => {
+  const limOtimo = targetCplMax > 0 ? targetCplMax * 0.7 : 20;
+  const limOk = targetCplMax > 0 ? targetCplMax : 40;
+  let status, color, Icon, bg;
+
+  if (conversas === 0) {
+    status = "Sem conversões no período"; color = "text-zinc-400"; bg = "bg-zinc-800/50 border-zinc-700/50"; Icon = AlertCircle;
+  } else if (cpl <= limOtimo) {
+    status = targetCplMax > 0 ? "CPL Ótimo — abaixo de 70% do target" : "CPL Ótimo — performance excelente";
+    color = "text-emerald-400"; bg = "bg-emerald-500/10 border-emerald-500/20"; Icon = CheckCircle2;
+  } else if (cpl <= limOk) {
+    status = targetCplMax > 0 ? `CPL dentro do target (${fBRL0(targetCplMax)})` : "CPL Dentro do esperado";
+    color = "text-amber-400"; bg = "bg-amber-500/10 border-amber-500/20"; Icon = AlertCircle;
+  } else {
+    status = targetCplMax > 0 ? `CPL Alto — acima do target ${fBRL0(targetCplMax)}` : "CPL Alto — revisar palavras-chave";
+    color = "text-red-400"; bg = "bg-red-500/10 border-red-500/20"; Icon = XCircle;
+  }
+
+  return (
+    <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border ${bg}`}>
+      <Icon className={`w-4 h-4 ${color}`} />
+      <span className={`text-sm font-semibold ${color}`}>{status}</span>
+      {conversas > 0 && (
+        <span className="ml-auto text-xs text-zinc-500">CPL: {fBRL0(cpl)}</span>
+      )}
+    </div>
   );
 };
 
@@ -715,21 +836,119 @@ export default function GoogleDashboardPage() {
               </div>
             )}
 
-            {/* ── KPI GRID ── */}
-            {kpiData.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                {kpiData.map((kpi, i) => (
-                  <KpiCard
-                    key={kpi.label}
-                    label={kpi.label}
-                    value={kpi.value}
-                    delta={kpi.delta}
-                    icon={kpi.icon}
-                    color={kpi.color}
-                    lowerIsBetter={kpi.lowerIsBetter}
-                    delay={0.1 + i * 0.05}
+            {/* ── HERO NARRATIVA ── */}
+            {data?.hasData && (
+              <HeroNarrativa
+                metrics={m}
+                period={period}
+                periodLabel={getDateRange(period)}
+                clientName={data?.client}
+              />
+            )}
+
+            {/* ── META PROGRESS + CPL STATUS ── */}
+            {data?.hasData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                {data.targets?.target_conversas > 0 && (
+                  <MetaProgress
+                    atual={m.conversas}
+                    meta={data.targets.target_conversas}
+                    color="#C9F80D"
                   />
-                ))}
+                )}
+                <CplStatus
+                  cpl={m.cpl}
+                  conversas={m.conversas}
+                  targetCplMax={data.targets?.target_cpl_max || 0}
+                />
+              </div>
+            )}
+
+            {/* ── RESULTADO DE NEGÓCIO ── */}
+            {data?.hasData && (() => {
+              const taxa = data.targets?.taxa_conversao ?? 0.1;
+              const ticket = data.targets?.ticket_medio ?? 0;
+              const vendas = Math.floor(m.conversas * taxa);
+              const faturamento = vendas * ticket;
+              const hasTicket = ticket > 0;
+              return (
+                <div>
+                  <p className="text-[11px] text-[#C9F80D] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    Resultado de negócio
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                    <KpiCard
+                      label="Conversões"
+                      value={fNum(m.conversas)}
+                      delta={data.delta?.conversas ?? null}
+                      icon={Zap}
+                      color="#10b981"
+                      delay={0}
+                    />
+                    <KpiCard
+                      label="Vendas estimadas"
+                      value={fNum(vendas)}
+                      icon={ShoppingBag}
+                      color="#06B6D4"
+                      delay={0.05}
+                    />
+                    {hasTicket ? (
+                      <>
+                        <KpiCard
+                          label="Faturamento"
+                          value={fBRL0(faturamento)}
+                          icon={Banknote}
+                          color="#C9F80D"
+                          delay={0.1}
+                        />
+                        <KpiCard
+                          label="ROAS"
+                          value={m.gasto > 0 ? `${(faturamento / m.gasto).toFixed(2)}x` : "—"}
+                          icon={TrendingUp}
+                          color={m.gasto > 0 && faturamento >= m.gasto ? "#10B981" : "#EF4444"}
+                          delay={0.15}
+                        />
+                      </>
+                    ) : (
+                      <div className="col-span-2 bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center gap-3">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <div className="text-xs font-semibold text-zinc-300">Cadastre o ticket médio</div>
+                          <div className="text-[10px] text-zinc-500">Em Admin → Cliente → Metas, pra ver Faturamento + ROAS</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── INVESTIMENTO E TRÁFEGO ── */}
+            {kpiData.length > 0 && (
+              <div>
+                <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Investimento e tráfego</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <KpiCard label="Investimento" value={fBRL0(m.gasto)} delta={data.delta?.gasto ?? null} icon={DollarSign} color="#f59e0b" delay={0} />
+                  <KpiCard label="Impressões"   value={fNum(m.impressoes)} delta={data.delta?.impressoes ?? null} icon={Eye} color="#0ea5e9" delay={0.05} />
+                  <KpiCard label="Cliques"      value={fNum(m.cliques)} delta={data.delta?.cliques ?? null} icon={MousePointer} color="#4285F4" delay={0.08} />
+                  {m.impressionShare != null
+                    ? <KpiCard label="Imp. Share" value={fPct(m.impressionShare)} icon={BarChart3} color="#06b6d4" delay={0.11} />
+                    : <KpiCard label="CTR" value={fPct(m.ctr)} icon={Target} color="#C9F80D" delay={0.11} />}
+                </div>
+              </div>
+            )}
+
+            {/* ── EFICIÊNCIA ── */}
+            {kpiData.length > 0 && (
+              <div>
+                <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Eficiência</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <KpiCard label="CPL"       value={m.cpl > 0 ? fBRL(m.cpl) : "—"} delta={data.delta?.cpl ?? null} icon={Target} color="#f97316" lowerIsBetter delay={0} />
+                  <KpiCard label="CPC Médio" value={fBRL(m.cpc)} icon={DollarSign} color="#22c55e" lowerIsBetter delay={0.05} />
+                  <KpiCard label="CTR"       value={fPct(m.ctr)} icon={Target} color="#C9F80D" delay={0.08} />
+                  <KpiCard label="CPM"       value={m.impressoes > 0 ? fBRL(m.cpm) : "—"} icon={BarChart3} color="#A78BFA" lowerIsBetter delay={0.11} />
+                </div>
               </div>
             )}
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   LogOut, Star, MapPin, Phone, Globe, TrendingUp,
   Eye, Navigation, Search, Settings, MessageCircle, ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -70,6 +71,57 @@ function timeAgo(dateStr) {
 // ─────────────────────────────────────────────
 // KPI CARD
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// HERO NARRATIVA — frase-resumo do período (GMB)
+// ─────────────────────────────────────────────
+const HeroNarrativaGmb = ({ metrics, periodLabel, clientName }) => {
+  if (!metrics || (metrics.impressoes === 0 && metrics.ligacoes === 0)) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4 sm:p-5"
+    >
+      <div className="text-sm sm:text-base text-zinc-200 leading-relaxed">
+        {clientName && <span className="text-zinc-500">{clientName} · </span>}
+        <span className="text-zinc-400">{periodLabel} seu negócio apareceu </span>
+        <span className="font-bold text-[#C9F80D]">{fNum(metrics.impressoes)} {metrics.impressoes === 1 ? "vez" : "vezes"}</span>
+        <span className="text-zinc-400"> no Google. </span>
+        {metrics.ligacoes > 0 && (
+          <>
+            <span className="text-zinc-400">Resultou em </span>
+            <span className="font-bold text-emerald-400">{fNum(metrics.ligacoes)} {metrics.ligacoes === 1 ? "ligação" : "ligações"}</span>
+            <span className="text-zinc-400"> diretamente do perfil.</span>
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// KPI DESTAQUE — card grande pra "Ligações"
+// ─────────────────────────────────────────────
+const KpiDestaque = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ type: "spring", stiffness: 130, damping: 18, delay }}
+    className="bg-zinc-900 border-2 rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+    style={{ borderColor: color + "60" }}
+  >
+    <div className="p-3 rounded-xl shrink-0" style={{ background: color + "20" }}>
+      <Icon className="w-6 h-6" style={{ color }} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">{label}</div>
+      <div className="text-3xl font-bold text-zinc-100 tabular-nums leading-tight">{value}</div>
+      {sub && <div className="text-[11px] text-zinc-500 mt-0.5">{sub}</div>}
+    </div>
+  </motion.div>
+);
 
 const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => (
   <motion.div
@@ -411,30 +463,87 @@ export default function GmbDashboardPage() {
               </motion.div>
             )}
 
-            {/* ── KPI CARDS ── */}
+            {/* ── HERO NARRATIVA ── */}
+            {hasInsights && !isApiError && !isQuotaError && !loadingInsights && (
+              <HeroNarrativaGmb
+                metrics={m}
+                periodLabel={
+                  period === "daily" ? "Ontem"
+                  : period === "weekly" ? "Nos últimos 7 dias"
+                  : "Nos últimos 30 dias"
+                }
+                clientName={clientName}
+              />
+            )}
+
+            {/* ── KPIs DE RESULTADO (destaque máximo) — Ligações + Site + Direções ── */}
             {(loadingInsights || hasInsights) && !isApiError && !isQuotaError && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-                {[
-                  { label: "Impressões", key: "impressoes", icon: Eye,        color: GMB_GREEN },
-                  { label: "Buscas",     key: "buscas",     icon: Search,      color: "#4285F4" },
-                  { label: "Mapas",      key: "mapas",      icon: MapPin,      color: "#EA4335" },
-                  { label: "Ligações",   key: "ligacoes",   icon: Phone,       color: "#FBBC04" },
-                  { label: "Site",       key: "cliquessite",icon: Globe,       color: "#34A853" },
-                  { label: "Direções",   key: "direcoes",   icon: Navigation,  color: "#9C27B0" },
-                ].map((card, i) => (
-                  loadingInsights ? (
-                    <div key={card.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-24" />
+              <div>
+                <p className="text-[11px] text-[#C9F80D] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3" />
+                  Conversões diretas
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                  {loadingInsights ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-24" />
+                    ))
                   ) : (
-                    <KpiCard
-                      key={card.key}
-                      label={card.label}
-                      value={fNum(m[card.key])}
-                      icon={card.icon}
-                      color={card.color}
-                      delay={i * 0.05}
-                    />
-                  )
-                ))}
+                    <>
+                      <KpiDestaque
+                        label="Ligações"
+                        value={fNum(m.ligacoes)}
+                        sub="Clicaram em ligar"
+                        icon={Phone}
+                        color="#FBBC04"
+                        delay={0}
+                      />
+                      <KpiDestaque
+                        label="Site"
+                        value={fNum(m.cliquessite)}
+                        sub="Visitaram o site"
+                        icon={Globe}
+                        color="#34A853"
+                        delay={0.05}
+                      />
+                      <KpiDestaque
+                        label="Direções"
+                        value={fNum(m.direcoes)}
+                        sub="Pediram rota"
+                        icon={Navigation}
+                        color="#9C27B0"
+                        delay={0.1}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── KPIs DE DESCOBERTA — Impressões + Buscas + Mapas ── */}
+            {(loadingInsights || hasInsights) && !isApiError && !isQuotaError && (
+              <div>
+                <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Como te encontraram</p>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {[
+                    { label: "Impressões", key: "impressoes", icon: Eye,    color: GMB_GREEN },
+                    { label: "Buscas",     key: "buscas",     icon: Search, color: "#4285F4" },
+                    { label: "Mapas",      key: "mapas",      icon: MapPin, color: "#EA4335" },
+                  ].map((card, i) => (
+                    loadingInsights ? (
+                      <div key={card.key} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 animate-pulse h-24" />
+                    ) : (
+                      <KpiCard
+                        key={card.key}
+                        label={card.label}
+                        value={fNum(m[card.key])}
+                        icon={card.icon}
+                        color={card.color}
+                        delay={i * 0.05}
+                      />
+                    )
+                  ))}
+                </div>
               </div>
             )}
 

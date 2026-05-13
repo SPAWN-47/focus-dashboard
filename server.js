@@ -966,6 +966,7 @@ app.get("/api/google/insights", async (req, res) => {
       target_conversas:  clientData?.target_conversas  || 0,
       target_cpl_max:    clientData?.target_cpl_max    || 0,
       target_spend:      clientData?.target_spend      || 0,
+      taxa_conversao:    clientData?.taxa_conversao    ?? 0.1,
     };
 
     // ROAS — only when ticket_medio is configured
