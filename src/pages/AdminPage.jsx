@@ -154,6 +154,7 @@ function ClientModal({ client, onClose, onSave, existingIds = [] }) {
     segmento: client?.segmento || "",
     email: client?.email || "",
     telefone: client?.telefone || "",
+    taxa_conversao: client?.taxa_conversao ?? 0.1,
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -256,6 +257,7 @@ function ClientModal({ client, onClose, onSave, existingIds = [] }) {
             segmento: form.segmento || null,
             email: form.email || null,
             telefone: form.telefone || null,
+            taxa_conversao: parseFloat(form.taxa_conversao) || 0.1,
           }),
         });
       } else {
@@ -266,6 +268,7 @@ function ClientModal({ client, onClose, onSave, existingIds = [] }) {
             segmento: form.segmento || null,
             email: form.email || null,
             telefone: form.telefone || null,
+            taxa_conversao: parseFloat(form.taxa_conversao) || 0.1,
           }),
         });
       }
@@ -746,6 +749,34 @@ function ClientModal({ client, onClose, onSave, existingIds = [] }) {
                     className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D]"
                   />
                 </div>
+              </div>
+
+              {/* Taxa de conversão — usada pra estimar vendas + faturamento no dashboard */}
+              <div className="mt-3">
+                <label className="block text-xs text-zinc-400 mb-1 flex items-center gap-1.5">
+                  Taxa de conversão (lead → venda)
+                  <HelpHint>
+                    De cada 100 leads/conversas, quantos viram cliente. Usado pra estimar <b>vendas</b> e <b>faturamento</b> no dashboard. Padrão: 10% (0.1).
+                  </HelpHint>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={form.taxa_conversao}
+                    onChange={(e) => set("taxa_conversao", e.target.value)}
+                    placeholder="0.10"
+                    className="flex-1 bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C9F80D] tabular-nums"
+                  />
+                  <span className="text-xs text-zinc-500 font-mono tabular-nums w-12 text-right">
+                    {((parseFloat(form.taxa_conversao) || 0) * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <p className="text-[10px] text-zinc-600 mt-1">
+                  Ex: <code className="bg-zinc-800 px-1 rounded">0.15</code> = 15 vendas a cada 100 leads
+                </p>
               </div>
             </div>
             </>}

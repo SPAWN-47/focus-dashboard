@@ -4,7 +4,7 @@ import {
   RefreshCw, Eye, Users, MousePointer, MessageCircle,
   TrendingUp, DollarSign, Target, BarChart3, AlertCircle,
   CheckCircle2, XCircle, ExternalLink, ArrowLeft, LogOut, Settings,
-  FileDown, Image as ImageIcon,
+  FileDown, Image as ImageIcon, ShoppingBag, Banknote, Sparkles,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -60,6 +60,102 @@ const Logo = ({ className = "" }) => (
     <circle cx="17.5" cy="17.5" r="2.5" fill="#C9F80D" stroke="none" />
   </svg>
 );
+
+// ─────────────────────────────────────────────
+// HERO NARRATIVA — frase-resumo do período
+// ─────────────────────────────────────────────
+const HeroNarrativa = ({ metrics, period, periodLabel, clientName }) => {
+  if (!metrics || metrics.conversas === 0) return null;
+  const periodTextMap = {
+    daily:   "ontem",
+    weekly:  "na semana passada",
+    monthly: `em ${periodLabel.toLowerCase()}`,
+  };
+  const periodText = periodTextMap[period] || periodLabel;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="bg-gradient-to-br from-zinc-900 to-zinc-900/60 border border-zinc-800 rounded-2xl p-4 sm:p-5"
+    >
+      <div className="text-sm sm:text-base text-zinc-200 leading-relaxed">
+        {clientName && <span className="text-zinc-500">{clientName} · </span>}
+        <span className="text-zinc-400">{periodText.charAt(0).toUpperCase() + periodText.slice(1)} você investiu </span>
+        <span className="font-bold text-[#C9F80D]">R$ {fBRL(metrics.gasto)}</span>
+        <span className="text-zinc-400"> e gerou </span>
+        <span className="font-bold text-emerald-400">{fNum(metrics.conversas)} {metrics.conversas === 1 ? "conversa" : "conversas"}</span>
+        <span className="text-zinc-400"> no WhatsApp. </span>
+        {metrics.cpl > 0 && (
+          <>
+            <span className="text-zinc-400">Custo por lead: </span>
+            <span className="font-bold text-sky-400">R$ {fBRL(metrics.cpl)}</span>
+            <span className="text-zinc-400">.</span>
+          </>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// META PROGRESS — anel circular do progresso de conversas
+// ─────────────────────────────────────────────
+const MetaProgress = ({ atual, meta, color = "#C9F80D" }) => {
+  if (!meta || meta <= 0) return null;
+  const pct = Math.min(100, (atual / meta) * 100);
+  const R = 40;
+  const C = 2 * Math.PI * R;
+  const offset = C * (1 - pct / 100);
+
+  const remaining = Math.max(0, meta - atual);
+  const status = pct >= 100 ? "Meta batida!" : pct >= 75 ? "Quase lá" : pct >= 40 ? "No ritmo" : "Acelerar";
+  const statusColor = pct >= 100 ? "#10B981" : pct >= 75 ? color : pct >= 40 ? "#F59E0B" : "#EF4444";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+    >
+      <div className="relative shrink-0">
+        <svg width="100" height="100" viewBox="0 0 100 100" className="-rotate-90">
+          <circle cx="50" cy="50" r={R} stroke="#27272a" strokeWidth="8" fill="none" />
+          <motion.circle
+            cx="50" cy="50" r={R}
+            stroke={statusColor}
+            strokeWidth="8"
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={C}
+            initial={{ strokeDashoffset: C }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-lg font-bold tabular-nums text-zinc-100">{pct.toFixed(0)}%</span>
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: statusColor }}>
+          {status}
+        </div>
+        <div className="text-sm font-bold text-zinc-100 mb-1">
+          <span className="tabular-nums">{fNum(atual)}</span>
+          <span className="text-zinc-500"> / {fNum(meta)} conversas</span>
+        </div>
+        <div className="text-[11px] text-zinc-500">
+          {pct >= 100
+            ? `+${fNum(atual - meta)} acima da meta 🎉`
+            : `Faltam ${fNum(remaining)} para bater a meta`}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 // ─────────────────────────────────────────────
 // KPI CARD
@@ -837,10 +933,97 @@ export default function DashboardPage() {
                 transition={{ duration: 0.3 }}
                 className="space-y-6"
               >
-                {/* KPI CARDS */}
+                {/* HERO NARRATIVA — frase contextual do período */}
+                <HeroNarrativa
+                  metrics={metrics}
+                  period={activePeriod}
+                  periodLabel={getDateRange(activePeriod)}
+                  clientName={currentClient?.name}
+                />
+
+                {/* META PROGRESS + STATUS lado a lado */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                  {targets.target_conversas > 0 && (
+                    <MetaProgress
+                      atual={metrics.conversas}
+                      meta={targets.target_conversas}
+                      color={currentClient?.color || "#C9F80D"}
+                    />
+                  )}
+                  <CplStatus
+                    cpl={metrics.cpl}
+                    conversas={metrics.conversas}
+                    targetCplMax={targets.target_cpl_max || 0}
+                  />
+                </div>
+
+                {/* ─── RESULTADO DE NEGÓCIO ─── (destaque máximo) */}
+                {(() => {
+                  const taxa = targets.taxa_conversao ?? 0.1;
+                  const vendas = Math.floor(metrics.conversas * taxa);
+                  const faturamento = vendas * (targets.ticket_medio || 0);
+                  const hasTicket = targets.ticket_medio > 0;
+                  return (
+                    <div>
+                      <p className="text-[11px] text-[#C9F80D] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3" />
+                        Resultado de negócio
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                        <KpiCard
+                          label="Conversas/Leads"
+                          value={fNum(metrics.conversas)}
+                          sub="WhatsApp / Lead"
+                          icon={MessageCircle}
+                          color="#10B981"
+                          delay={0}
+                          delta={delta?.conversas}
+                        />
+                        <KpiCard
+                          label="Vendas estimadas"
+                          value={fNum(vendas)}
+                          sub={`${(taxa * 100).toFixed(0)}% de conversão`}
+                          icon={ShoppingBag}
+                          color="#06B6D4"
+                          delay={0.05}
+                        />
+                        {hasTicket ? (
+                          <>
+                            <KpiCard
+                              label="Faturamento"
+                              value={`R$ ${fBRL(faturamento)}`}
+                              sub={`${fNum(vendas)} × R$ ${fBRL(targets.ticket_medio)}`}
+                              icon={Banknote}
+                              color="#C9F80D"
+                              delay={0.1}
+                            />
+                            <KpiCard
+                              label="ROAS"
+                              value={metrics.gasto > 0 ? `${(faturamento / metrics.gasto).toFixed(2)}x` : "N/A"}
+                              sub={metrics.gasto > 0 && faturamento >= metrics.gasto ? "Acima do break-even" : "Abaixo do break-even"}
+                              icon={TrendingUp}
+                              color={metrics.gasto > 0 && faturamento >= metrics.gasto ? "#10B981" : "#EF4444"}
+                              delay={0.15}
+                            />
+                          </>
+                        ) : (
+                          <div className="col-span-2 bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl p-3 sm:p-4 flex items-center gap-3">
+                            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                            <div>
+                              <div className="text-xs font-semibold text-zinc-300">Cadastre o ticket médio</div>
+                              <div className="text-[10px] text-zinc-500">No Admin → Cliente → tab Metas, pra ver Faturamento + ROAS</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ─── INVESTIMENTO E TRÁFEGO ─── (secundário) */}
                 <div>
-                  <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Tráfego</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                  <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Investimento e tráfego</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                     <KpiCard
                       label="Investimento"
                       value={`R$ ${fBRL(metrics.gasto)}`}
@@ -873,37 +1056,21 @@ export default function DashboardPage() {
                       delay={0.11}
                       delta={delta?.cliques}
                     />
-                    <KpiCard
-                      label="Conversas/Leads"
-                      value={fNum(metrics.conversas)}
-                      sub="WhatsApp / Lead"
-                      icon={MessageCircle}
-                      color="#10B981"
-                      delay={0.14}
-                      delta={delta?.conversas}
-                    />
                   </div>
                 </div>
 
+                {/* ─── EFICIÊNCIA ─── (terciário) */}
                 <div>
                   <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Eficiência</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                     <KpiCard
-                      label="CTR"
-                      value={fPct(metrics.ctr)}
-                      sub="Tx. clique/impressão"
-                      icon={TrendingUp}
-                      color="#F59E0B"
-                      delay={0.17}
-                    />
-                    <KpiCard
-                      label="CPM"
-                      value={metrics.impressoes > 0 ? `R$ ${fBRL(metrics.cpm)}` : "N/A"}
-                      sub="Custo por mil impressões"
-                      icon={Target}
-                      color="#A78BFA"
-                      delay={0.2}
-                      delta={delta?.cpm}
+                      label="CPL"
+                      value={metrics.conversas > 0 ? `R$ ${fBRL(metrics.cpl)}` : "N/A"}
+                      sub="Custo por conversa"
+                      icon={BarChart3}
+                      color={currentClient?.color}
+                      delay={0}
+                      delta={delta?.cpl}
                       lowerIsBetter
                     />
                     <KpiCard
@@ -912,38 +1079,29 @@ export default function DashboardPage() {
                       sub="Custo por clique"
                       icon={Target}
                       color="#EC4899"
-                      delay={0.2}
+                      delay={0.05}
                       lowerIsBetter
                     />
                     <KpiCard
-                      label="CPL"
-                      value={metrics.conversas > 0 ? `R$ ${fBRL(metrics.cpl)}` : "N/A"}
-                      sub="Custo por conversa"
-                      icon={BarChart3}
-                      color={currentClient?.color}
-                      delay={0.23}
-                      delta={delta?.cpl}
+                      label="CTR"
+                      value={fPct(metrics.ctr)}
+                      sub="Cliques ÷ impressões"
+                      icon={TrendingUp}
+                      color="#F59E0B"
+                      delay={0.08}
+                    />
+                    <KpiCard
+                      label="CPM"
+                      value={metrics.impressoes > 0 ? `R$ ${fBRL(metrics.cpm)}` : "N/A"}
+                      sub="Custo por 1.000 vistas"
+                      icon={Target}
+                      color="#A78BFA"
+                      delay={0.11}
+                      delta={delta?.cpm}
                       lowerIsBetter
                     />
-                    {metrics.roas !== null && metrics.roas !== undefined && (
-                      <KpiCard
-                        label="ROAS"
-                        value={`${metrics.roas.toFixed(2)}x`}
-                        sub={`R$ ${fBRL(targets.ticket_medio)} ticket médio`}
-                        icon={TrendingUp}
-                        color="#34D399"
-                        delay={0.26}
-                      />
-                    )}
                   </div>
                 </div>
-
-                {/* STATUS BADGE */}
-                <CplStatus
-                  cpl={metrics.cpl}
-                  conversas={metrics.conversas}
-                  targetCplMax={targets.target_cpl_max || 0}
-                />
 
                 {/* FUNNEL + TREND */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
