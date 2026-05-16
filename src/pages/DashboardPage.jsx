@@ -460,11 +460,16 @@ const DeltaBadge = ({ delta, lowerIsBetter = false }) => {
   if (delta === null || delta === undefined) return null;
   const isPositive = delta >= 0;
   const isGood = lowerIsBetter ? !isPositive : isPositive;
+  const arrow = isPositive ? "↑" : "↓";
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-      isGood ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-    }`}>
-      {isPositive ? "+" : ""}{delta.toFixed(1)}%
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5 ${
+        isGood ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+      }`}
+      title={`${isPositive ? "Aumento" : "Redução"} de ${Math.abs(delta).toFixed(1)}% vs período anterior`}
+    >
+      <span className="text-[9px]">{arrow}</span>
+      {Math.abs(delta).toFixed(1)}%
     </span>
   );
 };

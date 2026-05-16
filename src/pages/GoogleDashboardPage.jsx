@@ -146,11 +146,16 @@ const DeltaBadge = ({ delta, lowerIsBetter = false }) => {
   if (delta === null || delta === undefined) return null;
   const isPositive = delta >= 0;
   const isGood = lowerIsBetter ? !isPositive : isPositive;
+  const arrow = isPositive ? "↑" : "↓";
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
-      isGood ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-    }`}>
-      {isPositive ? "+" : ""}{delta.toFixed(1)}%
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5 ${
+        isGood ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+      }`}
+      title={`${isPositive ? "Aumento" : "Redução"} de ${Math.abs(delta).toFixed(1)}% vs período anterior`}
+    >
+      <span className="text-[9px]">{arrow}</span>
+      {Math.abs(delta).toFixed(1)}%
     </span>
   );
 };
@@ -294,6 +299,215 @@ const MetaProgress = ({ atual, meta, color = "#C9F80D" }) => {
         </div>
       </div>
     </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SCORE DE SAÚDE — Google Ads
+// ─────────────────────────────────────────────
+const computeScore = ({ metrics, delta, targets }) => {
+  let score = 0;
+  const signals = [];
+
+  if (metrics.conversas > 0 && targets?.target_cpl_max > 0) {
+    const ratio = metrics.cpl / targets.target_cpl_max;
+    if (ratio <= 0.7)      { score += 40; signals.push({ ok: true,  msg: "CPL ótimo" }); }
+    else if (ratio <= 1.0) { score += 28; signals.push({ ok: true,  msg: "CPL dentro do target" }); }
+    else if (ratio <= 1.3) { score += 12; signals.push({ ok: false, msg: "CPL acima do target" }); }
+    else                   { score += 0;  signals.push({ ok: false, msg: "CPL muito alto" }); }
+  } else if (metrics.conversas > 0) {
+    score += 25; signals.push({ ok: true, msg: "Sem CPL alvo cadastrado" });
+  }
+
+  if (delta?.conversas != null) {
+    if (delta.conversas >= 20)      { score += 30; signals.push({ ok: true,  msg: "Conversões crescendo forte" }); }
+    else if (delta.conversas >= 0)  { score += 20; signals.push({ ok: true,  msg: "Conversões estáveis" }); }
+    else if (delta.conversas >= -15){ score += 8;  signals.push({ ok: false, msg: "Conversões em queda" }); }
+    else                            { score += 0;  signals.push({ ok: false, msg: "Conversões caíram muito" }); }
+  } else if (metrics.conversas > 0) score += 18;
+
+  if (targets?.target_conversas > 0) {
+    const pct = (metrics.conversas / targets.target_conversas) * 100;
+    if (pct >= 100)      { score += 30; signals.push({ ok: true,  msg: "Meta batida" }); }
+    else if (pct >= 75)  { score += 22; signals.push({ ok: true,  msg: "Quase batendo meta" }); }
+    else if (pct >= 40)  { score += 12; signals.push({ ok: false, msg: "Metade da meta" }); }
+    else                 { score += 0;  signals.push({ ok: false, msg: "Longe da meta" }); }
+  } else if (metrics.conversas > 0) score += 18;
+
+  return { score: Math.round(score), signals };
+};
+
+const ScoreSaude = ({ metrics, delta, targets }) => {
+  if (!metrics || metrics.conversas === 0) return null;
+  const { score, signals } = computeScore({ metrics, delta, targets });
+  const status = score >= 80
+    ? { label: "Saudável",  color: "#10B981", icon: CheckCircle2, desc: "Campanha indo muito bem" }
+    : score >= 50
+      ? { label: "Atenção",  color: "#F59E0B", icon: AlertCircle, desc: "Há sinais a observar" }
+      : { label: "Crítico",  color: "#EF4444", icon: XCircle,     desc: "Precisa otimização" };
+  const SIcon = status.icon;
+  const R = 42, C = 2 * Math.PI * R, offset = C * (1 - score / 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+      className="bg-zinc-900 border rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+      style={{ borderColor: status.color + "40" }}
+    >
+      <div className="relative shrink-0">
+        <svg width="100" height="100" viewBox="0 0 100 100" className="-rotate-90">
+          <circle cx="50" cy="50" r={R} stroke="#27272a" strokeWidth="8" fill="none" />
+          <motion.circle cx="50" cy="50" r={R} stroke={status.color} strokeWidth="8" fill="none" strokeLinecap="round"
+            strokeDasharray={C} initial={{ strokeDashoffset: C }} animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold tabular-nums text-zinc-100">{score}</span>
+          <span className="text-[8px] text-zinc-500 uppercase tracking-wider">/100</span>
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <SIcon className="w-4 h-4" style={{ color: status.color }} />
+          <span className="text-sm font-bold" style={{ color: status.color }}>{status.label}</span>
+          <span className="text-[10px] text-zinc-500 hidden sm:inline">· {status.desc}</span>
+        </div>
+        <div className="space-y-0.5">
+          {signals.slice(0, 3).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-[11px]">
+              <span className={`w-1 h-1 rounded-full ${s.ok ? "bg-emerald-400" : "bg-red-400"}`} />
+              <span className="text-zinc-400">{s.msg}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// INSIGHTS — Google Ads
+// ─────────────────────────────────────────────
+const generateInsights = ({ metrics, delta, targets, campaigns, keywords }) => {
+  const insights = [];
+
+  if (delta?.gasto != null && delta?.conversas != null && metrics.conversas > 0) {
+    if (delta.gasto < -5 && delta.conversas >= 0) {
+      insights.push({ type: "win", icon: "💰", msg: `Você economizou ${Math.abs(delta.gasto).toFixed(0)}% em verba sem perder conversões` });
+    }
+  }
+  if (delta?.cpl != null && delta.cpl < -5) {
+    insights.push({ type: "win", icon: "📉", msg: `CPL caiu ${Math.abs(delta.cpl).toFixed(0)}% — campanha mais eficiente` });
+  } else if (delta?.cpl != null && delta.cpl > 15) {
+    insights.push({ type: "alert", icon: "📈", msg: `CPL subiu ${delta.cpl.toFixed(0)}% — revisar palavras-chave e lances` });
+  }
+  if (delta?.conversas != null && delta.conversas >= 20) {
+    insights.push({ type: "win", icon: "🚀", msg: `Conversões cresceram ${delta.conversas.toFixed(0)}% — considere aumentar investimento` });
+  } else if (delta?.conversas != null && delta.conversas <= -20) {
+    insights.push({ type: "alert", icon: "⚠️", msg: `Conversões caíram ${Math.abs(delta.conversas).toFixed(0)}% — atenção urgente` });
+  }
+  if (targets?.target_conversas > 0) {
+    const pct = (metrics.conversas / targets.target_conversas) * 100;
+    if (pct >= 100) insights.push({ type: "win", icon: "🎯", msg: `Meta de ${fNum(targets.target_conversas)} conversões batida` });
+    else if (pct >= 80) {
+      const faltam = targets.target_conversas - metrics.conversas;
+      insights.push({ type: "info", icon: "🎯", msg: `Faltam apenas ${fNum(faltam)} conversões pra meta` });
+    }
+  }
+  if (campaigns?.campaigns?.length > 0) {
+    const withConv = campaigns.campaigns.filter((c) => c.conversas > 0 && c.cpl > 0);
+    if (withConv.length > 0) {
+      const best = [...withConv].sort((a, b) => a.cpl - b.cpl)[0];
+      insights.push({ type: "info", icon: "🏆", msg: `Melhor campanha: "${best.name}" com CPL ${fBRL(best.cpl)}` });
+    }
+  }
+  if (metrics.impressionShare != null && metrics.impressionShare < 30 && metrics.impressoes > 1000) {
+    insights.push({ type: "alert", icon: "👁️", msg: `Imp. Share de ${fPct(metrics.impressionShare)} — você aparece em menos de 1/3 das buscas` });
+  }
+  return insights.slice(0, 4);
+};
+
+const InsightsBox = ({ metrics, delta, targets, campaigns }) => {
+  const insights = generateInsights({ metrics, delta, targets, campaigns });
+  if (insights.length === 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="w-4 h-4 text-[#C9F80D]" />
+        <h3 className="text-sm font-bold text-zinc-100">Insights automáticos</h3>
+        <span className="text-[10px] text-zinc-500">· análise da campanha</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {insights.map((insight, i) => {
+          const colors = {
+            win:   { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-300" },
+            alert: { bg: "bg-amber-500/10",   border: "border-amber-500/20",   text: "text-amber-300" },
+            info:  { bg: "bg-sky-500/10",     border: "border-sky-500/20",     text: "text-sky-300" },
+          };
+          const c = colors[insight.type];
+          return (
+            <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
+              className={`flex items-start gap-2 px-3 py-2 rounded-xl border ${c.bg} ${c.border}`}
+            >
+              <span className="text-base shrink-0 leading-tight">{insight.icon}</span>
+              <span className={`text-[12px] font-medium ${c.text} leading-snug`}>{insight.msg}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// CAMPAIGN HIGHLIGHTS — Google Ads
+// ─────────────────────────────────────────────
+const CampaignHighlights = ({ campaigns }) => {
+  if (!campaigns?.campaigns || campaigns.campaigns.length < 2) return null;
+  const withConv = campaigns.campaigns.filter((c) => c.conversas > 0 && c.cpl > 0);
+  if (withConv.length < 2) return null;
+  const sorted = [...withConv].sort((a, b) => a.cpl - b.cpl);
+  const best = sorted[0], worst = sorted[sorted.length - 1];
+  if (best.name === worst.name) return null;
+
+  const HCard = ({ label, c, color, icon, kind }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      className={`bg-zinc-900 border rounded-2xl p-4 ${kind === "best" ? "border-emerald-500/30" : "border-amber-500/30"}`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">{icon}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
+      </div>
+      <div className="text-sm font-bold text-zinc-100 truncate mb-2" title={c.name}>{c.name}</div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <div className="text-[9px] text-zinc-500 uppercase tracking-wider">CPL</div>
+          <div className="text-sm font-mono font-bold tabular-nums" style={{ color }}>{fBRL(c.cpl)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] text-zinc-500 uppercase tracking-wider">Conv.</div>
+          <div className="text-sm font-mono tabular-nums text-zinc-200">{fNum(c.conversas)}</div>
+        </div>
+        <div>
+          <div className="text-[9px] text-zinc-500 uppercase tracking-wider">Gasto</div>
+          <div className="text-sm font-mono tabular-nums text-zinc-200">{fBRL0(c.gasto)}</div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <div>
+      <p className="text-[11px] text-zinc-500 uppercase tracking-wider mb-2">Destaques de campanha</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <HCard label="Melhor performance" c={best} color="#10B981" icon="🏆" kind="best" />
+        <HCard label="Precisa de atenção" c={worst} color="#F59E0B" icon="⚠️" kind="worst" />
+      </div>
+    </div>
   );
 };
 
@@ -874,22 +1088,20 @@ export default function GoogleDashboardPage() {
               />
             )}
 
-            {/* ── META PROGRESS + CPL STATUS ── */}
+            {/* ── SCORE SAÚDE + META PROGRESS + CPL STATUS ── */}
             {data?.hasData && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <ScoreSaude metrics={m} delta={data.delta} targets={data.targets} />
                 {data.targets?.target_conversas > 0 && (
-                  <MetaProgress
-                    atual={m.conversas}
-                    meta={data.targets.target_conversas}
-                    color="#C9F80D"
-                  />
+                  <MetaProgress atual={m.conversas} meta={data.targets.target_conversas} color="#C9F80D" />
                 )}
-                <CplStatus
-                  cpl={m.cpl}
-                  conversas={m.conversas}
-                  targetCplMax={data.targets?.target_cpl_max || 0}
-                />
+                <CplStatus cpl={m.cpl} conversas={m.conversas} targetCplMax={data.targets?.target_cpl_max || 0} />
               </div>
+            )}
+
+            {/* ── INSIGHTS AUTOMÁTICOS ── */}
+            {data?.hasData && (
+              <InsightsBox metrics={m} delta={data.delta} targets={data.targets} campaigns={campaigns} />
             )}
 
             {/* ── RESULTADO DE NEGÓCIO ── */}
@@ -1108,6 +1320,11 @@ export default function GoogleDashboardPage() {
                   ))}
                 </div>
               </motion.div>
+            )}
+
+            {/* ── CAMPAIGN HIGHLIGHTS — Best / Worst ── */}
+            {campaigns?.campaigns?.length > 1 && (
+              <CampaignHighlights campaigns={campaigns} />
             )}
 
             {/* ── CAMPAIGNS TABLE ── */}
