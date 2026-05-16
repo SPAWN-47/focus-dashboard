@@ -547,6 +547,64 @@ app.delete("/api/alert-rules/:id", (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── ADMIN USERS MANAGEMENT (admin-only) ────────────────────────────────────
+
+import { getUsers as dbGetUsers, saveUser as dbSaveUser, deleteUser as dbDeleteUser } from "./lib/db.js";
+
+app.get("/api/admin/users", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const users = dbGetUsers();
+    const safe = Object.entries(users).map(([username, u]) => ({
+      username,
+      name: u.name,
+      role: u.role,
+      clientId: u.clientId || null,
+    }));
+    res.json(safe);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/users", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { username, name, password, role = "client", clientId = null } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "username e password obrigatórios" });
+  }
+  if (!["admin", "client"].includes(role)) {
+    return res.status(400).json({ error: "role inválido (admin|client)" });
+  }
+  try {
+    const hash = await hashPassword(password);
+    dbSaveUser(username, {
+      name: name || username,
+      password: hash,
+      role,
+      clientId: role === "client" ? clientId : null,
+    });
+    res.status(201).json({ username, name: name || username, role, clientId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/admin/users/:username", (req, res) => {
+  const requester = requireAdmin(req, res);
+  if (!requester) return;
+  const target = req.params.username;
+  if (target === requester.username) {
+    return res.status(400).json({ error: "Não é possível deletar a si mesmo" });
+  }
+  try {
+    dbDeleteUser(target);
+    res.json({ ok: true, deleted: target });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── ROI PLANS (Calculadora de ROI) ─────────────────────────────────────────
 // Admin-only: lista, cria, atualiza, deleta planos de mídia
 

@@ -28,6 +28,9 @@ import {
   createRoiPlanShareToken,
   revokeRoiPlanShareToken,
   getRoiPlanByShareToken,
+  getUsers as dbGetUsers,
+  saveUser as dbSaveUser,
+  deleteUser as dbDeleteUser,
 } from "./lib/db.js";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 
@@ -489,6 +492,32 @@ export function metaApiPlugin() {
             if (!requireAdmin()) return;
             const limit = Math.min(parseInt(url.searchParams.get("limit")) || 100, 500);
             return json(getAnomalyHistory(limit));
+          }
+
+          // ─── ADMIN USERS ─────────────────────────────────────────
+          if (path === "/api/admin/users" && method === "GET") {
+            if (!requireAdmin()) return;
+            const users = dbGetUsers();
+            return json(Object.entries(users).map(([username, u]) => ({
+              username, name: u.name, role: u.role, clientId: u.clientId || null,
+            })));
+          }
+          if (path === "/api/admin/users" && method === "POST") {
+            if (!requireAdmin()) return;
+            const body = await parseBody(req);
+            const { username, name, password, role = "client", clientId = null } = body;
+            if (!username || !password) return json({ error: "username e password obrigatórios" }, 400);
+            const hash = await hashPassword(password);
+            dbSaveUser(username, { name: name || username, password: hash, role, clientId: role === "client" ? clientId : null });
+            return json({ username, name: name || username, role, clientId }, 201);
+          }
+          const userMatch = path.match(/^\/api\/admin\/users\/([^/]+)$/);
+          if (userMatch && method === "DELETE") {
+            const requester = requireAdmin();
+            if (!requester) return;
+            if (userMatch[1] === requester.username) return json({ error: "Não pode deletar a si mesmo" }, 400);
+            dbDeleteUser(userMatch[1]);
+            return json({ ok: true, deleted: userMatch[1] });
           }
 
           // ─── ROI PLANS ───────────────────────────────────────────
