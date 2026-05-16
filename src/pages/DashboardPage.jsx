@@ -1132,17 +1132,30 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* ── HERO ROW ── */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
+        {/* ── HERO ROW com saudação personalizada e gradiente da cor do cliente ── */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between relative overflow-hidden">
+          {/* Glow sutil com cor do cliente no fundo */}
+          {currentClient?.color && (
+            <div
+              className="absolute -top-12 -left-12 w-64 h-64 rounded-full opacity-[0.07] blur-3xl pointer-events-none"
+              style={{ background: currentClient.color }}
+            />
+          )}
+          <div className="relative">
+            <h1 className="text-lg sm:text-xl font-bold text-zinc-100 flex items-center gap-2">
+              {currentClient?.emoji && <span className="text-xl">{currentClient.emoji}</span>}
+              <span>
+                {currentClient?.name ? (
+                  <>Olá, <span style={{ color: currentClient.color || "#C9F80D" }}>{currentClient.name}</span></>
+                ) : "Visão geral"}
+              </span>
+            </h1>
             <div className="flex items-center gap-2 mt-1.5">
-              {currentClient.name && (
-                <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border bg-zinc-900 font-mono" style={{ color: "#C9F80D", borderColor: "#C9F80D40" }}>
-                  {currentClient.name}
-                </span>
+              <span className="text-xs text-zinc-500">Campanhas <span className="text-sky-400">Meta Ads</span></span>
+              {currentClient?.color && (
+                <span className="w-1 h-1 rounded-full" style={{ background: currentClient.color }} />
               )}
-              <span className="text-xs text-zinc-600">Campanhas Meta Ads</span>
+              <span className="text-xs text-zinc-600">{getDateRange(activePeriod)}</span>
             </div>
             {/* Admin client switcher — minimal text */}
             {isAdmin && clients.length > 1 && (

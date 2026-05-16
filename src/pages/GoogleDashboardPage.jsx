@@ -786,15 +786,21 @@ export default function GoogleDashboardPage() {
               transition={{ duration: 0.4, delay: 0.05 }}
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div>
-                <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {data?.client && (
-                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border bg-zinc-900 font-mono" style={{ color: "#C9F80D", borderColor: "#C9F80D40" }}>
-                      {data.client}
-                    </span>
-                  )}
-                  <span className="text-xs text-zinc-600">Campanhas Google Ads</span>
+              <div className="relative">
+                {/* Glow azul Google sutil */}
+                <div className="absolute -top-12 -left-12 w-64 h-64 rounded-full opacity-[0.05] blur-3xl pointer-events-none bg-[#4285F4]" />
+                <h1 className="text-lg sm:text-xl font-bold text-zinc-100 flex items-center gap-2 relative">
+                  <span>🔵</span>
+                  <span>
+                    {data?.client ? (
+                      <>Olá, <span className="text-[#4285F4]">{data.client}</span></>
+                    ) : "Visão geral"}
+                  </span>
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5 relative">
+                  <span className="text-xs text-zinc-500">Campanhas <span className="text-[#4285F4]">Google Ads</span></span>
+                  <span className="w-1 h-1 rounded-full bg-[#4285F4]" />
+                  <span className="text-xs text-zinc-600">{getDateRange(period)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">

@@ -423,15 +423,21 @@ export default function GmbDashboardPage() {
               transition={{ duration: 0.4, delay: 0.05 }}
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div>
-                <h1 className="text-lg font-bold text-zinc-100">Visão geral</h1>
-                <div className="flex items-center gap-2 mt-1.5">
-                  {clientName && (
-                    <span className="text-[11px] font-semibold tracking-widest uppercase px-2.5 py-0.5 rounded border bg-zinc-900 font-mono" style={{ color: "#C9F80D", borderColor: "#C9F80D40" }}>
-                      {clientName}
-                    </span>
-                  )}
-                  <span className="text-xs text-zinc-600">Google Meu Negócio</span>
+              <div className="relative">
+                {/* Glow verde GMB sutil */}
+                <div className="absolute -top-12 -left-12 w-64 h-64 rounded-full opacity-[0.06] blur-3xl pointer-events-none" style={{ background: GMB_GREEN }} />
+                <h1 className="text-lg sm:text-xl font-bold text-zinc-100 flex items-center gap-2 relative">
+                  <span>📍</span>
+                  <span>
+                    {clientName ? (
+                      <>Olá, <span style={{ color: GMB_GREEN }}>{clientName}</span></>
+                    ) : "Visão geral"}
+                  </span>
+                </h1>
+                <div className="flex items-center gap-2 mt-1.5 relative">
+                  <span className="text-xs text-zinc-500">Perfil no <span style={{ color: GMB_GREEN }}>Google Meu Negócio</span></span>
+                  <span className="w-1 h-1 rounded-full" style={{ background: GMB_GREEN }} />
+                  <span className="text-xs text-zinc-600">{PERIODS.find(p => p.id === period)?.sub}</span>
                 </div>
               </div>
 
