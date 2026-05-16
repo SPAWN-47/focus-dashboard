@@ -21,7 +21,7 @@ import crypto from "crypto";
 import cron from "node-cron";
 import { META_BASE, DATE_PRESETS, extractConversions, computeMetrics } from "./lib/meta.js";
 import { DATE_RANGES as GOOGLE_DATE_RANGES, queryGoogleAds, computeGoogleMetrics } from "./lib/google.js";
-import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, getGmbDateRange, resolveLocationId, getDefaultAccountName, seedAccountNameFromFullPath } from "./lib/gmb.js";
+import { getGmbAccessToken, getGmbAccounts, getGmbLocations, getGmbReviews, getGmbInsights, computeGmbMetrics, extractGmbDailySeries, getGmbDateRange, resolveLocationId, getDefaultAccountName, seedAccountNameFromFullPath } from "./lib/gmb.js";
 
 import {
   checkRateLimit,
@@ -1743,7 +1743,48 @@ app.get("/api/gmb/insights", async (req, res) => {
     const series  = await getGmbInsights(freshLocation, startDate, endDate);
     const metrics = computeGmbMetrics(series);
 
-    const payload = { configured: true, period, metrics, startDate, endDate };
+    // Delta vs período anterior (mesmo tamanho de janela)
+    let delta = null;
+    try {
+      const periodDays = Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1);
+      const prevEnd = new Date(startDate);
+      prevEnd.setDate(prevEnd.getDate() - 1);
+      const prevStart = new Date(prevEnd);
+      prevStart.setDate(prevStart.getDate() - periodDays + 1);
+      const fmt = (d) => d.toISOString().split("T")[0];
+      const prevSeries = await getGmbInsights(freshLocation, fmt(prevStart), fmt(prevEnd));
+      const prev = computeGmbMetrics(prevSeries);
+      delta = {
+        impressoes:  prev.impressoes  > 0 ? ((metrics.impressoes  - prev.impressoes)  / prev.impressoes)  * 100 : null,
+        buscas:      prev.buscas      > 0 ? ((metrics.buscas      - prev.buscas)      / prev.buscas)      * 100 : null,
+        mapas:       prev.mapas       > 0 ? ((metrics.mapas       - prev.mapas)       / prev.mapas)       * 100 : null,
+        ligacoes:    prev.ligacoes    > 0 ? ((metrics.ligacoes    - prev.ligacoes)    / prev.ligacoes)    * 100 : null,
+        cliquessite: prev.cliquessite > 0 ? ((metrics.cliquessite - prev.cliquessite) / prev.cliquessite) * 100 : null,
+        direcoes:    prev.direcoes    > 0 ? ((metrics.direcoes    - prev.direcoes)    / prev.direcoes)    * 100 : null,
+      };
+    } catch (deltaErr) {
+      console.warn("[gmb/insights] delta query failed:", deltaErr.message);
+    }
+
+    const targets = {
+      ticket_medio:      clientConfig?.ticket_medio      || 0,
+      target_conversas:  clientConfig?.target_conversas  || 0,
+      taxa_conversao:    clientConfig?.taxa_conversao    ?? 0.1,
+    };
+
+    const dailySeries = extractGmbDailySeries(series);
+
+    const payload = {
+      configured: true,
+      client: clientConfig?.name,
+      period,
+      metrics,
+      delta,
+      dailySeries,
+      targets,
+      startDate,
+      endDate,
+    };
     setCachedInsights(clientId, cacheKey, payload);
     res.json(payload);
   } catch (err) {

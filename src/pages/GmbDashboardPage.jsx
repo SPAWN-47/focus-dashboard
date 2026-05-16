@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   LogOut, Star, MapPin, Phone, Globe, TrendingUp,
   Eye, Navigation, Search, Settings, MessageCircle, ArrowLeft,
-  Sparkles,
+  Sparkles, CheckCircle2, AlertCircle, XCircle, Activity,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import PlatformNav from "../components/PlatformNav";
@@ -102,6 +102,252 @@ const HeroNarrativaGmb = ({ metrics, periodLabel, clientName }) => {
 };
 
 // ─────────────────────────────────────────────
+// SCORE DE SAÚDE — GMB
+// Combina volume de ligações + tendência + diversidade de conversões
+// ─────────────────────────────────────────────
+const computeGmbScore = ({ metrics, delta }) => {
+  let score = 0;
+  const signals = [];
+  const ligacoes = metrics.ligacoes || 0;
+  const totalConv = ligacoes + (metrics.cliquessite || 0) + (metrics.direcoes || 0);
+
+  // 1. Volume de ligações (35 pts)
+  if (ligacoes >= 30)      { score += 35; signals.push({ ok: true,  msg: "Boa frequência de ligações" }); }
+  else if (ligacoes >= 10) { score += 22; signals.push({ ok: true,  msg: "Ligações regulares" }); }
+  else if (ligacoes >= 3)  { score += 10; signals.push({ ok: false, msg: "Poucas ligações" }); }
+  else                     { score += 0;  signals.push({ ok: false, msg: "Quase sem ligações" }); }
+
+  // 2. Tendência de ligações (35 pts)
+  if (delta?.ligacoes != null) {
+    if (delta.ligacoes >= 15)      { score += 35; signals.push({ ok: true,  msg: "Ligações crescendo forte" }); }
+    else if (delta.ligacoes >= 0)  { score += 25; signals.push({ ok: true,  msg: "Ligações estáveis" }); }
+    else if (delta.ligacoes >= -15){ score += 10; signals.push({ ok: false, msg: "Ligações em queda" }); }
+    else                           { score += 0;  signals.push({ ok: false, msg: "Ligações caíram muito" }); }
+  } else if (ligacoes > 0) score += 22;
+
+  // 3. Diversidade de conversões (30 pts) — ligações + site + direções
+  const callRatio = totalConv > 0 ? ligacoes / totalConv : 0;
+  if (totalConv >= 30 && callRatio >= 0.3 && callRatio <= 0.7)
+    { score += 30; signals.push({ ok: true, msg: "Mix saudável de contatos" }); }
+  else if (totalConv >= 10)
+    { score += 20; signals.push({ ok: true, msg: "Múltiplos canais de contato" }); }
+  else if (totalConv > 0)
+    { score += 10; }
+
+  return { score: Math.round(score), signals };
+};
+
+const ScoreSaudeGmb = ({ metrics, delta }) => {
+  if (!metrics || (metrics.ligacoes === 0 && metrics.cliquessite === 0 && metrics.direcoes === 0)) return null;
+  const { score, signals } = computeGmbScore({ metrics, delta });
+  const status = score >= 80
+    ? { label: "Saudável",  color: "#10B981", icon: CheckCircle2, desc: "Perfil performando bem" }
+    : score >= 50
+      ? { label: "Atenção",  color: "#F59E0B", icon: AlertCircle, desc: "Há sinais a observar" }
+      : { label: "Crítico",  color: "#EF4444", icon: XCircle,     desc: "Perfil precisa de ajustes" };
+  const SIcon = status.icon;
+  const R = 42, C = 2 * Math.PI * R, offset = C * (1 - score / 100);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+      className="bg-zinc-900 border rounded-2xl p-4 sm:p-5 flex items-center gap-4"
+      style={{ borderColor: status.color + "40" }}
+    >
+      <div className="relative shrink-0">
+        <svg width="100" height="100" viewBox="0 0 100 100" className="-rotate-90">
+          <circle cx="50" cy="50" r={R} stroke="#27272a" strokeWidth="8" fill="none" />
+          <motion.circle cx="50" cy="50" r={R} stroke={status.color} strokeWidth="8" fill="none" strokeLinecap="round"
+            strokeDasharray={C} initial={{ strokeDashoffset: C }} animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold tabular-nums text-zinc-100">{score}</span>
+          <span className="text-[8px] text-zinc-500 uppercase tracking-wider">/100</span>
+        </div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <SIcon className="w-4 h-4" style={{ color: status.color }} />
+          <span className="text-sm font-bold" style={{ color: status.color }}>{status.label}</span>
+          <span className="text-[10px] text-zinc-500 hidden sm:inline">· {status.desc}</span>
+        </div>
+        <div className="space-y-0.5">
+          {signals.slice(0, 3).map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-[11px]">
+              <span className={`w-1 h-1 rounded-full ${s.ok ? "bg-emerald-400" : "bg-red-400"}`} />
+              <span className="text-zinc-400">{s.msg}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// INSIGHTS — GMB
+// ─────────────────────────────────────────────
+const generateGmbInsights = ({ metrics, delta, reviews }) => {
+  const insights = [];
+  const ligacoes = metrics.ligacoes || 0;
+  const site = metrics.cliquessite || 0;
+  const dir = metrics.direcoes || 0;
+  const total = ligacoes + site + dir;
+
+  if (delta?.ligacoes != null && delta.ligacoes >= 20)
+    insights.push({ type: "win", icon: "📞", msg: `Ligações cresceram ${delta.ligacoes.toFixed(0)}% — aproveite o momento` });
+  else if (delta?.ligacoes != null && delta.ligacoes <= -20)
+    insights.push({ type: "alert", icon: "📉", msg: `Ligações caíram ${Math.abs(delta.ligacoes).toFixed(0)}% — verificar foto/horário/atributos` });
+
+  if (delta?.impressoes != null && delta.impressoes >= 20)
+    insights.push({ type: "win", icon: "👀", msg: `Visibilidade subiu ${delta.impressoes.toFixed(0)}% — perfil otimizado` });
+
+  // Conversion ratio insight
+  if (metrics.impressoes >= 1000 && total > 0) {
+    const convRate = (total / metrics.impressoes) * 100;
+    if (convRate >= 5)
+      insights.push({ type: "win", icon: "🎯", msg: `Taxa de conversão de ${convRate.toFixed(1)}% — perfil convertendo bem` });
+    else if (convRate < 1)
+      insights.push({ type: "alert", icon: "💡", msg: `Só ${convRate.toFixed(1)}% dos que veem convertem — revisar fotos e descrição` });
+  }
+
+  // Dominant channel
+  if (total >= 10) {
+    const max = Math.max(ligacoes, site, dir);
+    if (max === ligacoes && ligacoes > 0)
+      insights.push({ type: "info", icon: "📞", msg: `Ligações dominam (${Math.round((ligacoes/total)*100)}%) — invista em atendimento rápido` });
+    else if (max === site)
+      insights.push({ type: "info", icon: "🌐", msg: `Site é o destino preferido (${Math.round((site/total)*100)}%) — garanta que está mobile-friendly` });
+    else if (max === dir)
+      insights.push({ type: "info", icon: "🧭", msg: `Maioria pede rota (${Math.round((dir/total)*100)}%) — fluxo presencial alto` });
+  }
+
+  // Reviews
+  if (reviews?.configured && reviews.averageRating != null) {
+    if (reviews.averageRating >= 4.5)
+      insights.push({ type: "win", icon: "⭐", msg: `Nota ${reviews.averageRating.toFixed(1)} — reputação excelente` });
+    else if (reviews.averageRating < 4.0 && reviews.totalReviewCount >= 5)
+      insights.push({ type: "alert", icon: "⭐", msg: `Nota ${reviews.averageRating.toFixed(1)} — responder avaliações pra melhorar` });
+  }
+
+  return insights.slice(0, 4);
+};
+
+const InsightsBoxGmb = ({ metrics, delta, reviews }) => {
+  const insights = generateGmbInsights({ metrics, delta, reviews });
+  if (insights.length === 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="w-4 h-4 text-[#C9F80D]" />
+        <h3 className="text-sm font-bold text-zinc-100">Insights automáticos</h3>
+        <span className="text-[10px] text-zinc-500">· análise do perfil</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {insights.map((insight, i) => {
+          const colors = {
+            win:   { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-300" },
+            alert: { bg: "bg-amber-500/10",   border: "border-amber-500/20",   text: "text-amber-300" },
+            info:  { bg: "bg-sky-500/10",     border: "border-sky-500/20",     text: "text-sky-300" },
+          };
+          const c = colors[insight.type];
+          return (
+            <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
+              className={`flex items-start gap-2 px-3 py-2 rounded-xl border ${c.bg} ${c.border}`}
+            >
+              <span className="text-base shrink-0 leading-tight">{insight.icon}</span>
+              <span className={`text-[12px] font-medium ${c.text} leading-snug`}>{insight.msg}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+};
+
+// ─────────────────────────────────────────────
+// CALLS TREND CHART — tendência de ligações ao longo do tempo
+// ─────────────────────────────────────────────
+const CallsTrendChart = ({ dailySeries }) => {
+  if (!dailySeries || dailySeries.length < 3) return null;
+
+  const data = dailySeries.slice(-21); // últimos 21 dias
+  const maxLig = Math.max(...data.map(d => d.ligacoes), 1);
+  const W = 600, H = 140, padL = 30, padR = 16, padT = 12, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const xStep = data.length > 1 ? plotW / (data.length - 1) : 0;
+  const points = data.map((d, i) => ({
+    x: padL + i * xStep,
+    y: padT + plotH - (d.ligacoes / maxLig) * plotH,
+    d,
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const areaD = pathD + ` L ${points[points.length-1].x.toFixed(1)} ${(padT + plotH).toFixed(1)} L ${padL.toFixed(1)} ${(padT + plotH).toFixed(1)} Z`;
+
+  const totalLig = data.reduce((s, d) => s + d.ligacoes, 0);
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[#C9F80D]" />
+          <h3 className="text-sm font-bold text-zinc-100">Ligações por dia</h3>
+          <span className="text-[10px] text-zinc-500">· últimos {data.length} dias</span>
+        </div>
+        <span className="text-[10px] text-zinc-500">
+          Total: <span className="font-mono font-bold text-zinc-200">{fNum(totalLig)}</span>
+        </span>
+      </div>
+
+      <div className="overflow-x-auto -mx-2 px-2">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 360 }}>
+          <defs>
+            <linearGradient id="gmb-trend-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#FBBC04" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#FBBC04" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {/* Grid horizontal sutil */}
+          {[0.25, 0.5, 0.75].map((r, i) => (
+            <line key={i} x1={padL} x2={W - padR}
+              y1={padT + plotH * r} y2={padT + plotH * r}
+              stroke="#27272a" strokeDasharray="2,3" strokeWidth="1" />
+          ))}
+          <path d={areaD} fill="url(#gmb-trend-area)" />
+          <path d={pathD} fill="none" stroke="#FBBC04" strokeWidth="2" strokeLinejoin="round" />
+          {points.map((p, i) => (
+            <g key={i}>
+              <circle cx={p.x} cy={p.y} r="3" fill="#FBBC04" stroke="#0a0a0a" strokeWidth="1.5">
+                <title>{`${new Date(p.d.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}: ${p.d.ligacoes} ${p.d.ligacoes === 1 ? "ligação" : "ligações"}`}</title>
+              </circle>
+            </g>
+          ))}
+          {/* X labels — first, middle, last */}
+          {[0, Math.floor(data.length/2), data.length-1].map((i) => {
+            const p = points[i];
+            const d = data[i];
+            return (
+              <text key={i} x={p.x} y={H - 6} textAnchor="middle" fontSize="9" fill="#71717a" fontFamily="system-ui">
+                {new Date(d.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+              </text>
+            );
+          })}
+          {/* Y labels */}
+          <text x={padL - 6} y={padT + 4} textAnchor="end" fontSize="9" fill="#71717a">{maxLig}</text>
+          <text x={padL - 6} y={padT + plotH + 4} textAnchor="end" fontSize="9" fill="#71717a">0</text>
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────
 // KPI DESTAQUE — card grande pra "Ligações"
 // ─────────────────────────────────────────────
 const KpiDestaque = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
@@ -132,7 +378,24 @@ const METRIC_HELP = {
   "Direções":   "Pessoas que pediram rota até seu negócio.",
 };
 
-const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => {
+const DeltaBadge = ({ delta }) => {
+  if (delta === null || delta === undefined) return null;
+  const isPositive = delta >= 0;
+  const arrow = isPositive ? "↑" : "↓";
+  return (
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5 ${
+        isPositive ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+      }`}
+      title={`${isPositive ? "Aumento" : "Redução"} de ${Math.abs(delta).toFixed(1)}% vs período anterior`}
+    >
+      <span className="text-[9px]">{arrow}</span>
+      {Math.abs(delta).toFixed(1)}%
+    </span>
+  );
+};
+
+const KpiCard = ({ label, value, icon: Icon, color, delay = 0, delta = null }) => {
   const helpText = METRIC_HELP[label];
   return (
     <motion.div
@@ -152,6 +415,12 @@ const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => {
         </span>
       </div>
       <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+      {delta !== null && delta !== undefined && (
+        <div className="flex items-center justify-between min-h-[16px]">
+          <span className="text-[10px] text-zinc-600">vs período anterior</span>
+          <DeltaBadge delta={delta} />
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -498,6 +767,16 @@ export default function GmbDashboardPage() {
               />
             )}
 
+            {/* ── SCORE SAÚDE ── */}
+            {hasInsights && !isApiError && !isQuotaError && !loadingInsights && (
+              <ScoreSaudeGmb metrics={m} delta={insights.delta} />
+            )}
+
+            {/* ── INSIGHTS AUTOMÁTICOS ── */}
+            {hasInsights && !isApiError && !isQuotaError && !loadingInsights && (
+              <InsightsBoxGmb metrics={m} delta={insights.delta} reviews={reviews} />
+            )}
+
             {/* ── KPIs DE RESULTADO (destaque máximo) — Ligações + Site + Direções ── */}
             {(loadingInsights || hasInsights) && !isApiError && !isQuotaError && (
               <div>
@@ -515,7 +794,7 @@ export default function GmbDashboardPage() {
                       <KpiDestaque
                         label="Ligações"
                         value={fNum(m.ligacoes)}
-                        sub="Clicaram em ligar"
+                        sub={insights.delta?.ligacoes != null ? `${insights.delta.ligacoes >= 0 ? "↑" : "↓"} ${Math.abs(insights.delta.ligacoes).toFixed(0)}% vs período anterior` : "Clicaram em ligar"}
                         icon={Phone}
                         color="#FBBC04"
                         delay={0}
@@ -523,7 +802,7 @@ export default function GmbDashboardPage() {
                       <KpiDestaque
                         label="Site"
                         value={fNum(m.cliquessite)}
-                        sub="Visitaram o site"
+                        sub={insights.delta?.cliquessite != null ? `${insights.delta.cliquessite >= 0 ? "↑" : "↓"} ${Math.abs(insights.delta.cliquessite).toFixed(0)}% vs período anterior` : "Visitaram o site"}
                         icon={Globe}
                         color="#34A853"
                         delay={0.05}
@@ -531,7 +810,7 @@ export default function GmbDashboardPage() {
                       <KpiDestaque
                         label="Direções"
                         value={fNum(m.direcoes)}
-                        sub="Pediram rota"
+                        sub={insights.delta?.direcoes != null ? `${insights.delta.direcoes >= 0 ? "↑" : "↓"} ${Math.abs(insights.delta.direcoes).toFixed(0)}% vs período anterior` : "Pediram rota"}
                         icon={Navigation}
                         color="#9C27B0"
                         delay={0.1}
@@ -540,6 +819,11 @@ export default function GmbDashboardPage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* ── TENDÊNCIA DE LIGAÇÕES (gráfico) ── */}
+            {hasInsights && !isApiError && !isQuotaError && !loadingInsights && insights.dailySeries?.length > 2 && (
+              <CallsTrendChart dailySeries={insights.dailySeries} />
             )}
 
             {/* ── KPIs DE DESCOBERTA — Impressões + Buscas + Mapas ── */}
@@ -562,6 +846,7 @@ export default function GmbDashboardPage() {
                         icon={card.icon}
                         color={card.color}
                         delay={i * 0.05}
+                        delta={insights?.delta?.[card.key]}
                       />
                     )
                   ))}
