@@ -155,16 +155,37 @@ const DeltaBadge = ({ delta, lowerIsBetter = false }) => {
   );
 };
 
-const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay = 0 }) => (
+const METRIC_HELP = {
+  "Impressões":       "Quantas vezes seu anúncio apareceu nos resultados de busca.",
+  "Cliques":          "Quantas pessoas clicaram no seu anúncio do Google.",
+  "CTR":              "De cada 100 que viram, quantos clicaram. Quanto maior, melhor.",
+  "CPC Médio":        "Custo médio que você pagou por cada clique.",
+  "Conversões":       "Ações de valor que aconteceram após o clique (lead, compra, contato).",
+  "CPL":              "Custo por lead. Métrica principal — quanto menor, melhor.",
+  "Investimento":     "Total gasto em Google Ads no período.",
+  "ROAS":             "Retorno sobre investimento. 2x = cada R$1 virou R$2.",
+  "Imp. Share":       "Sua fatia da audiência total. 50% = aparece em metade das buscas.",
+  "CPM":              "Custo por mil impressões. Quanto menor, mais barato anunciar.",
+  "Vendas estimadas": "Calculado: conversões × taxa de conversão cadastrada do cliente.",
+  "Faturamento":      "Calculado: vendas estimadas × ticket médio cadastrado.",
+};
+
+const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay = 0, help }) => {
+  const helpText = help || METRIC_HELP[label];
+  return (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     whileHover={{ y: -2, transition: { duration: 0.15 } }}
     transition={{ type: "spring", stiffness: 120, damping: 16, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default"
+    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default group"
+    title={helpText}
   >
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
+      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight flex items-center gap-1">
+        {label}
+        {helpText && <span className="text-[8px] text-zinc-700 group-hover:text-zinc-500 transition-colors normal-case tracking-normal">ⓘ</span>}
+      </span>
       <span className="p-1.5 rounded-lg shrink-0" style={{ background: color + "20" }}>
         <Icon className="w-3.5 h-3.5" style={{ color }} />
       </span>
@@ -175,7 +196,8 @@ const KpiCard = ({ label, value, delta, icon: Icon, color, lowerIsBetter, delay 
       <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
     </div>
   </motion.div>
-);
+  );
+};
 
 const StatusDot = ({ status }) => {
   const isActive = status === "ENABLED" || status === "Ativo";

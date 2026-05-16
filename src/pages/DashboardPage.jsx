@@ -469,29 +469,62 @@ const DeltaBadge = ({ delta, lowerIsBetter = false }) => {
   );
 };
 
-const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null, lowerIsBetter = false }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ y: -2, transition: { duration: 0.15 } }}
-    transition={{ type: "spring", stiffness: 120, damping: 16, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default"
-  >
-    <div className="flex items-center justify-between">
-      <span className="text-[11px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wider">{label}</span>
-      <span className="p-1.5 rounded-lg" style={{ background: color + "20" }}>
-        <Icon className="w-3.5 h-3.5" style={{ color }} />
-      </span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
-    <div className="flex items-center justify-between min-h-[16px]">
-      <div className="text-[11px] text-zinc-500">
-        {delta !== null && delta !== undefined ? "vs período anterior" : (sub || "")}
+// Glossário leigo — explica métricas técnicas no hover
+const METRIC_HELP = {
+  "Impressões":         "Quantas vezes seu anúncio apareceu na tela das pessoas.",
+  "Alcance":            "Quantas pessoas únicas viram seu anúncio (sem repetir).",
+  "Cliques":            "Quantas vezes alguém clicou no seu anúncio.",
+  "Conversas/Leads":    "Pessoas que entraram em contato pelo WhatsApp ou formulário.",
+  "Conversões":         "Ações de valor que o cliente fez (lead, compra, contato).",
+  "Vendas estimadas":   "Calculado: conversas × taxa de conversão cadastrada do cliente.",
+  "Faturamento":        "Calculado: vendas estimadas × ticket médio cadastrado.",
+  "ROAS":               "Retorno sobre o investimento em anúncios. 2x = cada R$1 virou R$2.",
+  "Investimento":       "Total gasto em anúncios no período.",
+  "CTR":                "De cada 100 pessoas que viram, quantas clicaram. Quanto maior, melhor o criativo.",
+  "CPM":                "Custo por 1.000 pessoas alcançadas. Quanto menor, mais barato.",
+  "CPC":                "Custo por clique. Quanto menor, mais cliques pelo mesmo valor.",
+  "CPL":                "Custo por lead/conversa. Métrica principal — quanto menor, melhor.",
+  "Imp. Share":         "Sua fatia da audiência total no Google. 50% = aparece em metade das buscas.",
+  "CPC Médio":          "Custo médio por clique no Google Ads. Quanto menor, melhor.",
+  "Ligações":           "Pessoas que clicaram em 'Ligar' direto do perfil do Google.",
+  "Site":               "Pessoas que clicaram pra visitar seu site pelo perfil.",
+  "Direções":           "Pessoas que pediram rota até seu negócio.",
+  "Buscas":             "Pessoas que te encontraram buscando direto seu nome ou categoria.",
+  "Mapas":              "Pessoas que te encontraram navegando no Google Maps.",
+};
+
+const KpiCard = ({ label, value, sub, icon: Icon, color, delay = 0, delta = null, lowerIsBetter = false, help }) => {
+  const helpText = help || METRIC_HELP[label];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2, transition: { duration: 0.15 } }}
+      transition={{ type: "spring", stiffness: 120, damping: 16, delay }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 cursor-default group relative"
+      title={helpText}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] sm:text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+          {label}
+          {helpText && (
+            <span className="text-[8px] text-zinc-700 group-hover:text-zinc-500 transition-colors normal-case tracking-normal">ⓘ</span>
+          )}
+        </span>
+        <span className="p-1.5 rounded-lg" style={{ background: color + "20" }}>
+          <Icon className="w-3.5 h-3.5" style={{ color }} />
+        </span>
       </div>
-      <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
-    </div>
-  </motion.div>
-);
+      <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+      <div className="flex items-center justify-between min-h-[16px]">
+        <div className="text-[11px] text-zinc-500">
+          {delta !== null && delta !== undefined ? "vs período anterior" : (sub || "")}
+        </div>
+        <DeltaBadge delta={delta} lowerIsBetter={lowerIsBetter} />
+      </div>
+    </motion.div>
+  );
+};
 
 // ─────────────────────────────────────────────
 // FUNNEL VISUALIZATION

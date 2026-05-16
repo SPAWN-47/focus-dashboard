@@ -123,22 +123,38 @@ const KpiDestaque = ({ label, value, sub, icon: Icon, color, delay = 0 }) => (
   </motion.div>
 );
 
-const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2"
-  >
-    <div className="flex items-center justify-between">
-      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight">{label}</span>
-      <span className="p-1.5 rounded-lg shrink-0" style={{ background: color + "20" }}>
-        <Icon className="w-3.5 h-3.5" style={{ color }} />
-      </span>
-    </div>
-    <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
-  </motion.div>
-);
+const METRIC_HELP = {
+  "Impressões": "Quantas vezes seu perfil apareceu no Google (busca + mapas).",
+  "Buscas":     "Pessoas que te encontraram buscando direto seu nome ou categoria.",
+  "Mapas":      "Pessoas que te encontraram navegando no Google Maps.",
+  "Ligações":   "Pessoas que clicaram em 'Ligar' direto do perfil.",
+  "Site":       "Pessoas que clicaram pra visitar seu site.",
+  "Direções":   "Pessoas que pediram rota até seu negócio.",
+};
+
+const KpiCard = ({ label, value, icon: Icon, color, delay = 0 }) => {
+  const helpText = METRIC_HELP[label];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 sm:p-4 flex flex-col gap-2 group"
+      title={helpText}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider leading-tight flex items-center gap-1">
+          {label}
+          {helpText && <span className="text-[8px] text-zinc-700 group-hover:text-zinc-500 transition-colors normal-case tracking-normal">ⓘ</span>}
+        </span>
+        <span className="p-1.5 rounded-lg shrink-0" style={{ background: color + "20" }}>
+          <Icon className="w-3.5 h-3.5" style={{ color }} />
+        </span>
+      </div>
+      <div className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">{value}</div>
+    </motion.div>
+  );
+};
 
 // ─────────────────────────────────────────────
 // REVIEW CARD
